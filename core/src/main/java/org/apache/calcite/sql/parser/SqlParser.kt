@@ -1,0 +1,391 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to you under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.calcite.sql.parser
+
+import org.apache.calcite.avatica.util.Casing
+
+/**
+ * A `SqlParser` parses a SQL statement.
+ */
+@Value.Enclosing
+@SuppressWarnings("deprecation")
+class SqlParser private constructor(
+    parser: SqlAbstractParserImpl,
+    config: Config
+) {
+    //~ Instance fields --------------------------------------------------------
+    private val parser: SqlAbstractParserImpl
+
+    //~ Constructors -----------------------------------------------------------
+    init {
+        this.parser = parser
+        parser.setTabSize(1)
+        parser.setQuotedCasing(config.quotedCasing())
+        parser.setUnquotedCasing(config.unquotedCasing())
+        parser.setIdentifierMaxLength(config.identifierMaxLength())
+        parser.setConformance(config.conformance())
+        parser.switchTo(SqlAbstractParserImpl.LexicalState.forConfig(config))
+    }
+
+    /**
+     * Parses a SQL expression.
+     *
+     * @throws SqlParseException if there is a parse error
+     */
+    @Throws(SqlParseException::class)
+    fun parseExpression(): SqlNode {
+        return try {
+            parser.parseSqlExpressionEof()
+        } catch (ex: Throwable) {
+            if (ex is CalciteContextException) {
+                val originalSql: String = parser.getOriginalSql()
+                if (originalSql != null) {
+                    (ex as CalciteContextException).setOriginalStatement(originalSql)
+                }
+            }
+            throw parser.normalizeException(ex)
+        }
+    }
+
+    /** Normalizes a SQL exception.  */
+    private fun handleException(ex: Throwable): SqlParseException {
+        if (ex is CalciteContextException) {
+            val originalSql: String = parser.getOriginalSql()
+            if (originalSql != null) {
+                (ex as CalciteContextException).setOriginalStatement(originalSql)
+            }
+        }
+        return parser.normalizeException(ex)
+    }
+
+    /**
+     * Parses a `SELECT` statement.
+     *
+     * @return A [org.apache.calcite.sql.SqlSelect] for a regular `
+     * SELECT` statement; a [org.apache.calcite.sql.SqlBinaryOperator]
+     * for a `UNION`, `INTERSECT`, or `EXCEPT`.
+     * @throws SqlParseException if there is a parse error
+     */
+    @Throws(SqlParseException::class)
+    fun parseQuery(): SqlNode {
+        return try {
+            parser.parseSqlStmtEof()
+        } catch (ex: Throwable) {
+            throw handleException(ex)
+        }
+    }
+
+    /**
+     * Parses a `SELECT` statement and reuses parser.
+     *
+     * @param sql sql to parse
+     * @return A [org.apache.calcite.sql.SqlSelect] for a regular `
+     * SELECT` statement; a [org.apache.calcite.sql.SqlBinaryOperator]
+     * for a `UNION`, `INTERSECT`, or `EXCEPT`.
+     * @throws SqlParseException if there is a parse error
+     */
+    @Throws(SqlParseException::class)
+    fun parseQuery(sql: String?): SqlNode {
+        parser.ReInit(StringReader(sql))
+        return parseQuery()
+    }
+
+    /**
+     * Parses an SQL statement.
+     *
+     * @return top-level SqlNode representing stmt
+     * @throws SqlParseException if there is a parse error
+     */
+    @Throws(SqlParseException::class)
+    fun parseStmt(): SqlNode {
+        return parseQuery()
+    }
+
+    /**
+     * Parses a list of SQL statements separated by semicolon.
+     * The semicolon is required between statements, but is
+     * optional at the end.
+     *
+     * @return list of SqlNodeList representing the list of SQL statements
+     * @throws SqlParseException if there is a parse error
+     */
+    @Throws(SqlParseException::class)
+    fun parseStmtList(): SqlNodeList {
+        return try {
+            parser.parseSqlStmtList()
+        } catch (ex: Throwable) {
+            throw handleException(ex)
+        }
+    }
+
+    /**
+     * Get the parser metadata.
+     *
+     * @return [SqlAbstractParserImpl.Metadata] implementation of
+     * underlying parser.
+     */
+    val metadata: org.apache.calcite.sql.parser.SqlAbstractParserImpl.Metadata
+        get() = parser.getMetadata()
+
+    /**
+     * Returns the warnings that were generated by the previous invocation
+     * of the parser.
+     */
+    val warnings: List<Any>
+        get() = parser.warnings
+
+    /**
+     * Interface to define the configuration for a SQL parser.
+     */
+    @Value.Immutable
+    @SuppressWarnings("deprecation")
+    interface Config {
+        @Value.Default
+        fun identifierMaxLength(): Int {
+            return DEFAULT_IDENTIFIER_MAX_LENGTH
+        }
+
+        /** Sets [.identifierMaxLength].  */
+        fun withIdentifierMaxLength(identifierMaxLength: Int): Config
+
+        @Value.Default
+        fun quotedCasing(): Casing? {
+            return Casing.UNCHANGED
+        }
+
+        /** Sets [.quotedCasing].  */
+        fun withQuotedCasing(casing: Casing?): Config
+
+        @Value.Default
+        fun unquotedCasing(): Casing? {
+            return Casing.TO_UPPER
+        }
+
+        /** Sets [.unquotedCasing].  */
+        fun withUnquotedCasing(casing: Casing?): Config
+
+        @Value.Default
+        fun quoting(): Quoting? {
+            return Quoting.DOUBLE_QUOTE
+        }
+
+        /** Sets [.quoting].  */
+        fun withQuoting(quoting: Quoting?): Config
+
+        @Value.Default
+        fun caseSensitive(): Boolean {
+            return true
+        }
+
+        /** Sets [.caseSensitive].  */
+        fun withCaseSensitive(caseSensitive: Boolean): Config
+
+        @Value.Default
+        fun conformance(): SqlConformance {
+            return SqlConformanceEnum.DEFAULT
+        }
+
+        /** Sets [.conformance].  */
+        fun withConformance(conformance: SqlConformance?): Config
+
+        @Deprecated // to be removed before 2.0
+        @SuppressWarnings("deprecation")
+        @Value.Default
+        fun allowBangEqual(): Boolean {
+            return DEFAULT_ALLOW_BANG_EQUAL
+        }
+
+        /** Returns which character literal styles are supported.  */
+        @Value.Default
+        fun charLiteralStyles(): Set<CharLiteralStyle?> {
+            return ImmutableSet.of(CharLiteralStyle.STANDARD)
+        }
+
+        /** Sets [.charLiteralStyles].  */
+        fun withCharLiteralStyles(charLiteralStyles: Iterable<CharLiteralStyle?>?): Config
+
+        @Value.Default
+        fun parserFactory(): SqlParserImplFactory {
+            return SqlParserImpl.FACTORY
+        }
+
+        /** Sets [.parserFactory].  */
+        fun withParserFactory(factory: SqlParserImplFactory?): Config
+        fun withLex(lex: Lex): Config {
+            return withCaseSensitive(lex.caseSensitive)
+                .withUnquotedCasing(lex.unquotedCasing)
+                .withQuotedCasing(lex.quotedCasing)
+                .withQuoting(lex.quoting)
+                .withCharLiteralStyles(lex.charLiteralStyles)
+        }
+
+        companion object {
+            /** Default configuration.  */
+            val DEFAULT: Config = ImmutableSqlParser.Config.of()
+        }
+    }
+
+    /** Builder for a [Config].  */
+    @Deprecated // to be removed before 2.0
+    class ConfigBuilder {
+        private var config = Config.DEFAULT
+
+        /** Sets configuration to a given [Config].  */
+        fun setConfig(config: Config): ConfigBuilder {
+            this.config = config
+            return this
+        }
+
+        fun setQuotedCasing(quotedCasing: Casing?): ConfigBuilder {
+            return setConfig(config.withQuotedCasing(quotedCasing))
+        }
+
+        fun setUnquotedCasing(unquotedCasing: Casing?): ConfigBuilder {
+            return setConfig(config.withUnquotedCasing(unquotedCasing))
+        }
+
+        fun setQuoting(quoting: Quoting?): ConfigBuilder {
+            return setConfig(config.withQuoting(quoting))
+        }
+
+        fun setCaseSensitive(caseSensitive: Boolean): ConfigBuilder {
+            return setConfig(config.withCaseSensitive(caseSensitive))
+        }
+
+        fun setIdentifierMaxLength(identifierMaxLength: Int): ConfigBuilder {
+            return setConfig(config.withIdentifierMaxLength(identifierMaxLength))
+        }
+
+        @SuppressWarnings("unused")
+        @Deprecated // to be removed before 2.0
+        fun setAllowBangEqual(allowBangEqual: Boolean): ConfigBuilder {
+            return if (allowBangEqual != config.conformance().isBangEqualAllowed()) {
+                setConformance(
+                    object : SqlDelegatingConformance(config.conformance()) {
+                        @get:Override
+                        val isBangEqualAllowed: Boolean
+                            get() = allowBangEqual
+                    })
+            } else this
+        }
+
+        fun setConformance(conformance: SqlConformance?): ConfigBuilder {
+            return setConfig(config.withConformance(conformance))
+        }
+
+        fun setCharLiteralStyles(
+            charLiteralStyles: Set<CharLiteralStyle?>?
+        ): ConfigBuilder {
+            return setConfig(config.withCharLiteralStyles(charLiteralStyles))
+        }
+
+        fun setParserFactory(factory: SqlParserImplFactory?): ConfigBuilder {
+            return setConfig(config.withParserFactory(factory))
+        }
+
+        fun setLex(lex: Lex): ConfigBuilder {
+            return setConfig(config.withLex(lex))
+        }
+
+        /** Builds a [Config].  */
+        fun build(): Config {
+            return config
+        }
+    }
+
+    companion object {
+        const val DEFAULT_IDENTIFIER_MAX_LENGTH = 128
+
+        @Deprecated // to be removed before 2.0
+        val DEFAULT_ALLOW_BANG_EQUAL: Boolean = SqlConformanceEnum.DEFAULT.isBangEqualAllowed()
+        //~ Methods ----------------------------------------------------------------
+        /**
+         * Creates a `SqlParser` to parse the given string using
+         * Calcite's parser implementation.
+         *
+         *
+         * The default lexical policy is similar to Oracle.
+         *
+         * @see Lex.ORACLE
+         *
+         *
+         * @param s An SQL statement or expression to parse.
+         * @return A parser
+         */
+        fun create(s: String?): SqlParser {
+            return create(s, config())
+        }
+
+        /**
+         * Creates a `SqlParser` to parse the given string using the
+         * parser implementation created from given [SqlParserImplFactory]
+         * with given quoting syntax and casing policies for identifiers.
+         *
+         * @param sql A SQL statement or expression to parse
+         * @param config The parser configuration (identifier max length, etc.)
+         * @return A parser
+         */
+        fun create(sql: String?, config: Config?): SqlParser {
+            return create(SourceStringReader(sql), config)
+        }
+
+        /**
+         * Creates a `SqlParser` to parse the given string using the
+         * parser implementation created from given [SqlParserImplFactory]
+         * with given quoting syntax and casing policies for identifiers.
+         *
+         *
+         * Unlike
+         * [.create],
+         * the parser is not able to return the original query string, but will
+         * instead return "?".
+         *
+         * @param reader The source for the SQL statement or expression to parse
+         * @param config The parser configuration (identifier max length, etc.)
+         * @return A parser
+         */
+        fun create(reader: Reader?, config: Config): SqlParser {
+            val parser: SqlAbstractParserImpl = config.parserFactory().getParser(reader)
+            return SqlParser(parser, config)
+        }
+
+        /** Returns a default [Config].  */
+        fun config(): Config {
+            return Config.DEFAULT
+        }
+
+        /**
+         * Builder for a [Config].
+         *
+         */
+        @Deprecated // to be removed before 2.0
+        @Deprecated("Use {@link #config()}")
+        fun configBuilder(): ConfigBuilder {
+            return ConfigBuilder()
+        }
+
+        /**
+         * Builder for a [Config] that starts with an existing `Config`.
+         *
+         */
+        @Deprecated // to be removed before 2.0
+        @Deprecated("Use {@code config}, and modify it using its mutator methods")
+        fun configBuilder(config: Config): ConfigBuilder {
+            return ConfigBuilder().setConfig(config)
+        }
+    }
+}
