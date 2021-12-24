@@ -14,34 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.java;
+package org.apache.calcite.adapter.java
 
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.schema.QueryableTable;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Schemas;
-import org.apache.calcite.schema.impl.AbstractTable;
-
-import java.lang.reflect.Type;
+import org.apache.calcite.linq4j.tree.Expression
+import org.apache.calcite.schema.QueryableTable
+import org.apache.calcite.schema.SchemaPlus
+import org.apache.calcite.schema.Schemas
+import org.apache.calcite.schema.impl.AbstractTable
+import java.lang.reflect.Type
 
 /**
- * Abstract base class for implementing {@link org.apache.calcite.schema.Table}.
+ * Abstract base class for implementing [org.apache.calcite.schema.Table].
  */
-public abstract class AbstractQueryableTable extends AbstractTable
-    implements QueryableTable {
-  protected final Type elementType;
+abstract class AbstractQueryableTable protected constructor(elementType: Type?) : AbstractTable(), QueryableTable {
+    protected val elementType: Type?
 
-  protected AbstractQueryableTable(Type elementType) {
-    super();
-    this.elementType = elementType;
-  }
+    init {
+        this.elementType = elementType
+    }
 
-  @Override public Type getElementType() {
-    return elementType;
-  }
+    @Override
+    fun getElementType(): Type? {
+        return elementType
+    }
 
-  @Override public Expression getExpression(SchemaPlus schema, String tableName,
-      Class clazz) {
-    return Schemas.tableExpression(schema, elementType, tableName, clazz);
-  }
+    @Override
+    fun getExpression(
+        schema: SchemaPlus?, tableName: String?,
+        clazz: Class?
+    ): Expression {
+        return Schemas.tableExpression(schema, elementType, tableName, clazz)
+    }
 }

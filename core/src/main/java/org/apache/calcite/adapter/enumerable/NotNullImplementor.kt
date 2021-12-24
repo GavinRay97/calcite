@@ -14,33 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.rex.RexCall;
-
-import java.util.List;
+import org.apache.calcite.linq4j.tree.Expression
 
 /**
  * Simplified version of
- * {@link org.apache.calcite.adapter.enumerable.CallImplementor}
+ * [org.apache.calcite.adapter.enumerable.CallImplementor]
  * that does not know about null semantics.
  *
  * @see org.apache.calcite.adapter.enumerable.RexImpTable
+ *
  * @see org.apache.calcite.adapter.enumerable.CallImplementor
  */
-public interface NotNullImplementor {
-  /**
-   * Implements a call with assumption that all the null-checking is
-   * implemented by caller.
-   *
-   * @param translator translator to implement the code
-   * @param call call to implement
-   * @param translatedOperands arguments of a call
-   * @return expression that implements given call
-   */
-  Expression implement(
-      RexToLixTranslator translator,
-      RexCall call,
-      List<Expression> translatedOperands);
+interface NotNullImplementor {
+    /**
+     * Implements a call with assumption that all the null-checking is
+     * implemented by caller.
+     *
+     * @param translator translator to implement the code
+     * @param call call to implement
+     * @param translatedOperands arguments of a call
+     * @return expression that implements given call
+     */
+    fun implement(
+        translator: RexToLixTranslator?,
+        call: RexCall?,
+        translatedOperands: List<Expression?>?
+    ): Expression
 }

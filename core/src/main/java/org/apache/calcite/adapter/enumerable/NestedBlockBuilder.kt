@@ -14,40 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.linq4j.tree.BlockBuilder;
+import org.apache.calcite.linq4j.tree.BlockBuilder
 
 /**
  * Allows to build nested code blocks with tracking of current context.
  *
- * @see org.apache.calcite.adapter.enumerable.StrictAggImplementor#implementAdd(AggContext, AggAddContext)
+ * @see org.apache.calcite.adapter.enumerable.StrictAggImplementor.implementAdd
  */
-public interface NestedBlockBuilder {
-  /**
-   * Starts nested code block. The resulting block can optimize expressions
-   * and reuse already calculated values from the parent blocks.
-   * @return new code block that can optimize expressions and reuse already
-   * calculated values from the parent blocks.
-   */
-  BlockBuilder nestBlock();
+interface NestedBlockBuilder {
+    /**
+     * Starts nested code block. The resulting block can optimize expressions
+     * and reuse already calculated values from the parent blocks.
+     * @return new code block that can optimize expressions and reuse already
+     * calculated values from the parent blocks.
+     */
+    fun nestBlock(): BlockBuilder?
 
-  /**
-   * Uses given block as the new code context.
-   * The current block will be restored after {@link #exitBlock()} call.
-   * @param block new code block
-   * @see #exitBlock()
-   */
-  void nestBlock(BlockBuilder block);
+    /**
+     * Uses given block as the new code context.
+     * The current block will be restored after [.exitBlock] call.
+     * @param block new code block
+     * @see .exitBlock
+     */
+    fun nestBlock(block: BlockBuilder?)
 
-  /**
-   * Returns the current code block.
-   */
-  BlockBuilder currentBlock();
+    /**
+     * Returns the current code block.
+     */
+    fun currentBlock(): BlockBuilder?
 
-  /**
-   * Leaves the current code block.
-   * @see #nestBlock()
-   */
-  void exitBlock();
+    /**
+     * Leaves the current code block.
+     * @see .nestBlock
+     */
+    fun exitBlock()
 }

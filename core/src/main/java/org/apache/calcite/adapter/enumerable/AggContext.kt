@@ -14,76 +14,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlAggFunction;
-import org.apache.calcite.util.ImmutableBitSet;
-
-import java.lang.reflect.Type;
-import java.util.List;
+import org.apache.calcite.rel.type.RelDataType
+import org.apache.calcite.sql.SqlAggFunction
+import org.apache.calcite.util.ImmutableBitSet
+import java.lang.reflect.Type
+import java.util.List
 
 /**
  * Information on the aggregate calculation context.
- * {@link AggAddContext} provides basic static information on types of arguments
+ * [AggAddContext] provides basic static information on types of arguments
  * and the return value of the aggregate being implemented.
  */
-public interface AggContext {
-  /**
-   * Returns the aggregation being implemented.
-   * @return aggregation being implemented.
-   */
-  SqlAggFunction aggregation();
+interface AggContext {
+    /**
+     * Returns the aggregation being implemented.
+     * @return aggregation being implemented.
+     */
+    fun aggregation(): SqlAggFunction?
 
-  /**
-   * Returns the return type of the aggregate as
-   * {@link org.apache.calcite.rel.type.RelDataType}.
-   * This can be helpful to test
-   * {@link org.apache.calcite.rel.type.RelDataType#isNullable()}.
-   *
-   * @return return type of the aggregate
-   */
-  RelDataType returnRelType();
+    /**
+     * Returns the return type of the aggregate as
+     * [org.apache.calcite.rel.type.RelDataType].
+     * This can be helpful to test
+     * [org.apache.calcite.rel.type.RelDataType.isNullable].
+     *
+     * @return return type of the aggregate
+     */
+    fun returnRelType(): RelDataType?
 
-  /**
-   * Returns the return type of the aggregate as {@link java.lang.reflect.Type}.
-   * @return return type of the aggregate as {@link java.lang.reflect.Type}
-   */
-  Type returnType();
+    /**
+     * Returns the return type of the aggregate as [java.lang.reflect.Type].
+     * @return return type of the aggregate as [java.lang.reflect.Type]
+     */
+    fun returnType(): Type?
 
-  /**
-   * Returns the parameter types of the aggregate as
-   * {@link org.apache.calcite.rel.type.RelDataType}.
-   * This can be helpful to test
-   * {@link org.apache.calcite.rel.type.RelDataType#isNullable()}.
-   *
-   * @return Parameter types of the aggregate
-   */
-  List<? extends RelDataType> parameterRelTypes();
+    /**
+     * Returns the parameter types of the aggregate as
+     * [org.apache.calcite.rel.type.RelDataType].
+     * This can be helpful to test
+     * [org.apache.calcite.rel.type.RelDataType.isNullable].
+     *
+     * @return Parameter types of the aggregate
+     */
+    fun parameterRelTypes(): List<RelDataType?>?
 
-  /**
-   * Returns the parameter types of the aggregate as
-   * {@link java.lang.reflect.Type}.
-   *
-   * @return Parameter types of the aggregate
-   */
-  List<? extends Type> parameterTypes();
+    /**
+     * Returns the parameter types of the aggregate as
+     * [java.lang.reflect.Type].
+     *
+     * @return Parameter types of the aggregate
+     */
+    fun parameterTypes(): List<Type?>?
 
-  /** Returns the ordinals of the input fields that make up the key. */
-  List<Integer> keyOrdinals();
+    /** Returns the ordinals of the input fields that make up the key.  */
+    fun keyOrdinals(): List<Integer?>?
 
-  /**
-   * Returns the types of the group key as
-   * {@link org.apache.calcite.rel.type.RelDataType}.
-   */
-  List<? extends RelDataType> keyRelTypes();
+    /**
+     * Returns the types of the group key as
+     * [org.apache.calcite.rel.type.RelDataType].
+     */
+    fun keyRelTypes(): List<RelDataType?>?
 
-  /**
-   * Returns the types of the group key as
-   * {@link java.lang.reflect.Type}.
-   */
-  List<? extends Type> keyTypes();
+    /**
+     * Returns the types of the group key as
+     * [java.lang.reflect.Type].
+     */
+    fun keyTypes(): List<Type?>?
 
-  /** Returns the grouping sets we are aggregating on. */
-  List<ImmutableBitSet> groupSets();
+    /** Returns the grouping sets we are aggregating on.  */
+    fun groupSets(): List<ImmutableBitSet?>?
 }

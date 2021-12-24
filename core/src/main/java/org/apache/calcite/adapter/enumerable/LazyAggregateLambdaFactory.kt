@@ -14,15 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.linq4j.function.Function0;
-import org.apache.calcite.linq4j.function.Function1;
-import org.apache.calcite.linq4j.function.Function2;
-
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import org.apache.calcite.linq4j.function.Function0
 
 /**
  * Generate aggregate lambdas that preserve the input source before calling each
@@ -33,79 +27,74 @@ import java.util.List;
  * @param <TKey> Type of the group-by key
  * @param <TOrigAccumulate> Type of the original accumulator
  * @param <TResult> Type of the enumerable output result
- */
-public class LazyAggregateLambdaFactory<TSource, TKey, TOrigAccumulate, TResult>
-    implements AggregateLambdaFactory<TSource, TOrigAccumulate,
-    LazyAggregateLambdaFactory.LazySource<TSource>, TResult, TKey> {
-
-  private final Function0<TOrigAccumulate> accumulatorInitializer;
-  private final List<LazyAccumulator<TOrigAccumulate, TSource>> accumulators;
-
-  public LazyAggregateLambdaFactory(
-      Function0<TOrigAccumulate> accumulatorInitializer,
-      List<LazyAccumulator<TOrigAccumulate, TSource>> accumulators) {
-    this.accumulatorInitializer = accumulatorInitializer;
-    this.accumulators = accumulators;
-  }
-
-  @Override public Function0<LazySource<TSource>> accumulatorInitializer() {
-    return LazySource::new;
-  }
-
-  @Override public Function2<LazySource<TSource>,
-      TSource, LazySource<TSource>> accumulatorAdder() {
-    return (lazySource, source) -> {
-      lazySource.add(source);
-      return lazySource;
-    };
-  }
-
-  @Override public Function1<LazySource<TSource>, TResult> singleGroupResultSelector(
-      Function1<TOrigAccumulate, TResult> resultSelector) {
-    return lazySource -> {
-      final TOrigAccumulate accumulator = accumulatorInitializer.apply();
-      for (LazyAccumulator<TOrigAccumulate, TSource> acc : accumulators) {
-        acc.accumulate(lazySource, accumulator);
-      }
-      return resultSelector.apply(accumulator);
-    };
-  }
-
-  @Override public Function2<TKey, LazySource<TSource>, TResult> resultSelector(
-      Function2<TKey, TOrigAccumulate, TResult> resultSelector) {
-    return (groupByKey, lazySource) -> {
-      final TOrigAccumulate accumulator = accumulatorInitializer.apply();
-      for (LazyAccumulator<TOrigAccumulate, TSource> acc : accumulators) {
-        acc.accumulate(lazySource, accumulator);
-      }
-      return resultSelector.apply(groupByKey, accumulator);
-    };
-  }
-
-  /**
-   * Cache the input sources. (Will be aggregated in result selector.)
-   *
-   * @param <TSource> Type of the enumerable input source.
-   */
-  public static class LazySource<TSource> implements Iterable<TSource> {
-    private final List<TSource> list = new ArrayList<>();
-
-    private void add(TSource source) {
-      list.add(source);
+</TResult></TOrigAccumulate></TKey></TSource> */
+class LazyAggregateLambdaFactory<TSource, TKey, TOrigAccumulate, TResult>(
+    private val accumulatorInitializer: Function0<TOrigAccumulate>,
+    private val accumulators: List<LazyAccumulator<TOrigAccumulate, TSource>>
+) : AggregateLambdaFactory<TSource, TOrigAccumulate, LazyAggregateLambdaFactory.LazySource<TSource>?, TResult, TKey> {
+    @Override
+    fun accumulatorInitializer(): Function0<LazySource<TSource>> {
+        return Function0<LazySource<TSource>> { LazySource<Any?>() }
     }
 
-    @Override public Iterator<TSource> iterator() {
-      return list.iterator();
+    @Override
+    fun accumulatorAdder(): Function2<LazySource<TSource>, TSource, LazySource<TSource>> {
+        return Function2<LazySource<TSource>, TSource, LazySource<TSource>> { lazySource, source ->
+            lazySource.add(source)
+            lazySource
+        }
     }
-  }
 
-  /**
-   * Accumulate on the cached input sources.
-   *
-   * @param <TOrigAccumulate> Type of the original accumulator
-   * @param <TSource> Type of the enumerable input source.
-   */
-  public interface LazyAccumulator<TOrigAccumulate, TSource> {
-    void accumulate(Iterable<TSource> sourceIterable, TOrigAccumulate accumulator);
-  }
+    @Override
+    fun singleGroupResultSelector(
+        resultSelector: Function1<TOrigAccumulate, TResult>
+    ): Function1<LazySource<TSource>, TResult> {
+        return Function1<LazySource<TSource>, TResult> { lazySource ->
+            val accumulator: TOrigAccumulate = accumulatorInitializer.apply()
+            for (acc in accumulators) {
+                acc.accumulate(lazySource, accumulator)
+            }
+            resultSelector.apply(accumulator)
+        }
+    }
+
+    @Override
+    fun resultSelector(
+        resultSelector: Function2<TKey, TOrigAccumulate, TResult>
+    ): Function2<TKey, LazySource<TSource>, TResult> {
+        return Function2<TKey, LazySource<TSource>, TResult> { groupByKey, lazySource ->
+            val accumulator: TOrigAccumulate = accumulatorInitializer.apply()
+            for (acc in accumulators) {
+                acc.accumulate(lazySource, accumulator)
+            }
+            resultSelector.apply(groupByKey, accumulator)
+        }
+    }
+
+    /**
+     * Cache the input sources. (Will be aggregated in result selector.)
+     *
+     * @param <TSource> Type of the enumerable input source.
+    </TSource> */
+    class LazySource<TSource> : Iterable<TSource> {
+        private val list: List<TSource> = ArrayList()
+        private fun add(source: TSource) {
+            list.add(source)
+        }
+
+        @Override
+        override fun iterator(): Iterator<TSource> {
+            return list.iterator()
+        }
+    }
+
+    /**
+     * Accumulate on the cached input sources.
+     *
+     * @param <TOrigAccumulate> Type of the original accumulator
+     * @param <TSource> Type of the enumerable input source.
+    </TSource></TOrigAccumulate> */
+    interface LazyAccumulator<TOrigAccumulate, TSource> {
+        fun accumulate(sourceIterable: Iterable<TSource>?, accumulator: TOrigAccumulate)
+    }
 }

@@ -14,319 +14,344 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.adapter.enumerable.impl.AggAddContextImpl;
-import org.apache.calcite.adapter.enumerable.impl.AggResultContextImpl;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.config.CalciteSystemProperty;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.calcite.linq4j.function.Function2;
-import org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.linq4j.tree.ParameterExpression;
-import org.apache.calcite.linq4j.tree.Types;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelCollations;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Aggregate;
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlAggFunction;
-import org.apache.calcite.util.BuiltInMethod;
-import org.apache.calcite.util.ImmutableBitSet;
-import org.apache.calcite.util.Pair;
-import org.apache.calcite.util.Util;
+import org.apache.calcite.adapter.enumerable.impl.AggAddContextImpl
 
-import com.google.common.collect.ImmutableList;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-
-import static java.util.Objects.requireNonNull;
-
-/** Base class for EnumerableAggregate and EnumerableSortedAggregate. */
-public abstract class EnumerableAggregateBase extends Aggregate {
-  protected EnumerableAggregateBase(
-      RelOptCluster cluster,
-      RelTraitSet traitSet,
-      List<RelHint> hints,
-      RelNode input,
-      ImmutableBitSet groupSet,
-      @Nullable List<ImmutableBitSet> groupSets,
-      List<AggregateCall> aggCalls) {
-    super(cluster, traitSet, hints, input, groupSet, groupSets, aggCalls);
-  }
-
-  protected static boolean hasOrderedCall(List<AggImpState> aggs) {
-    for (AggImpState agg : aggs) {
-      if (!agg.call.collation.equals(RelCollations.EMPTY)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  protected void declareParentAccumulator(List<Expression> initExpressions,
-      BlockBuilder initBlock, PhysType accPhysType) {
-    if (accPhysType.getJavaRowType()
-        instanceof JavaTypeFactoryImpl.SyntheticRecordType) {
-      // We have to initialize the SyntheticRecordType instance this way, to
-      // avoid using a class constructor with too many parameters.
-      final JavaTypeFactoryImpl.SyntheticRecordType synType =
-          (JavaTypeFactoryImpl.SyntheticRecordType)
-              accPhysType.getJavaRowType();
-      final ParameterExpression record0_ =
-          Expressions.parameter(accPhysType.getJavaRowType(), "record0");
-      initBlock.add(Expressions.declare(0, record0_, null));
-      initBlock.add(
-          Expressions.statement(
-              Expressions.assign(record0_,
-                  Expressions.new_(accPhysType.getJavaRowType()))));
-      List<Types.RecordField> fieldList = synType.getRecordFields();
-      for (int i = 0; i < initExpressions.size(); i++) {
-        Expression right = initExpressions.get(i);
-        initBlock.add(
-            Expressions.statement(
-                Expressions.assign(
-                    Expressions.field(record0_, fieldList.get(i)), right)));
-      }
-      initBlock.add(record0_);
-    } else {
-      initBlock.add(accPhysType.record(initExpressions));
-    }
-  }
-
-  /**
-   * Implements the {@link AggregateLambdaFactory}.
-   *
-   * <p>Behavior depends upon ordering:
-   * <ul>
-   *
-   * <li>{@code hasOrderedCall == true} means there is at least one aggregate
-   * call including sort spec. We use {@link LazyAggregateLambdaFactory}
-   * implementation to implement sorted aggregates for that.
-   *
-   * <li>{@code hasOrderedCall == false} indicates to use
-   * {@link BasicAggregateLambdaFactory} to implement a non-sort
-   * aggregate.
-   *
-   * </ul>
-   */
-  protected void implementLambdaFactory(BlockBuilder builder,
-      PhysType inputPhysType, List<AggImpState> aggs,
-      Expression accumulatorInitializer, boolean hasOrderedCall,
-      ParameterExpression lambdaFactory) {
-    if (hasOrderedCall) {
-      ParameterExpression pe = Expressions.parameter(List.class,
-          builder.newName("lazyAccumulators"));
-      builder.add(
-          Expressions.declare(0, pe, Expressions.new_(LinkedList.class)));
-
-      for (AggImpState agg : aggs) {
-        if (agg.call.collation.equals(RelCollations.EMPTY)) {
-          // if the call does not require ordering, fallback to
-          // use a non-sorted lazy accumulator.
-          builder.add(
-              Expressions.statement(
-                  Expressions.call(pe,
-                      BuiltInMethod.COLLECTION_ADD.method,
-                      Expressions.new_(BuiltInMethod.BASIC_LAZY_ACCUMULATOR.constructor,
-                          requireNonNull(agg.accumulatorAdder, "agg.accumulatorAdder")))));
-          continue;
+/** Base class for EnumerableAggregate and EnumerableSortedAggregate.  */
+abstract class EnumerableAggregateBase protected constructor(
+    cluster: RelOptCluster?,
+    traitSet: RelTraitSet?,
+    hints: List<RelHint?>?,
+    input: RelNode?,
+    groupSet: ImmutableBitSet?,
+    @Nullable groupSets: List<ImmutableBitSet?>?,
+    aggCalls: List<AggregateCall?>?
+) : Aggregate(cluster, traitSet, hints, input, groupSet, groupSets, aggCalls) {
+    protected fun declareParentAccumulator(
+        initExpressions: List<Expression?>,
+        initBlock: BlockBuilder, accPhysType: PhysType
+    ) {
+        if (accPhysType.getJavaRowType() is JavaTypeFactoryImpl.SyntheticRecordType) {
+            // We have to initialize the SyntheticRecordType instance this way, to
+            // avoid using a class constructor with too many parameters.
+            val synType: JavaTypeFactoryImpl.SyntheticRecordType =
+                accPhysType.getJavaRowType() as JavaTypeFactoryImpl.SyntheticRecordType
+            val record0_: ParameterExpression = Expressions.parameter(accPhysType.getJavaRowType(), "record0")
+            initBlock.add(Expressions.declare(0, record0_, null))
+            initBlock.add(
+                Expressions.statement(
+                    Expressions.assign(
+                        record0_,
+                        Expressions.new_(accPhysType.getJavaRowType())
+                    )
+                )
+            )
+            val fieldList: List<Types.RecordField> = synType.getRecordFields()
+            for (i in 0 until initExpressions.size()) {
+                val right: Expression? = initExpressions[i]
+                initBlock.add(
+                    Expressions.statement(
+                        Expressions.assign(
+                            Expressions.field(record0_, fieldList[i]), right
+                        )
+                    )
+                )
+            }
+            initBlock.add(record0_)
+        } else {
+            initBlock.add(accPhysType.record(initExpressions))
         }
-        final Pair<Expression, Expression> pair =
-            inputPhysType.generateCollationKey(
-                agg.call.collation.getFieldCollations());
-        builder.add(
-            Expressions.statement(
-                Expressions.call(pe,
-                    BuiltInMethod.COLLECTION_ADD.method,
-                    Expressions.new_(BuiltInMethod.SOURCE_SORTER.constructor,
-                        requireNonNull(agg.accumulatorAdder, "agg.accumulatorAdder"),
-                        pair.left, pair.right))));
-      }
-      builder.add(
-          Expressions.declare(0, lambdaFactory,
-              Expressions.new_(
-                  BuiltInMethod.LAZY_AGGREGATE_LAMBDA_FACTORY.constructor,
-                  accumulatorInitializer, pe)));
-    } else {
-      // when hasOrderedCall == false
-      ParameterExpression pe = Expressions.parameter(List.class,
-          builder.newName("accumulatorAdders"));
-      builder.add(
-          Expressions.declare(0, pe, Expressions.new_(LinkedList.class)));
-
-      for (AggImpState agg : aggs) {
-        builder.add(
-            Expressions.statement(
-                Expressions.call(pe, BuiltInMethod.COLLECTION_ADD.method,
-                    requireNonNull(agg.accumulatorAdder, "agg.accumulatorAdder"))));
-      }
-      builder.add(
-          Expressions.declare(0, lambdaFactory,
-              Expressions.new_(
-                  BuiltInMethod.BASIC_AGGREGATE_LAMBDA_FACTORY.constructor,
-                  accumulatorInitializer, pe)));
-    }
-  }
-
-  /** An implementation of {@link AggContext}. */
-  protected class AggContextImpl implements AggContext {
-    private final AggImpState agg;
-    private final JavaTypeFactory typeFactory;
-
-    AggContextImpl(AggImpState agg, JavaTypeFactory typeFactory) {
-      this.agg = agg;
-      this.typeFactory = typeFactory;
     }
 
-    @Override public SqlAggFunction aggregation() {
-      return agg.call.getAggregation();
-    }
-
-    @Override public RelDataType returnRelType() {
-      return agg.call.type;
-    }
-
-    @Override public Type returnType() {
-      return EnumUtils.javaClass(typeFactory, returnRelType());
-    }
-
-    @Override public List<? extends RelDataType> parameterRelTypes() {
-      return EnumUtils.fieldRowTypes(getInput().getRowType(), null,
-          agg.call.getArgList());
-    }
-
-    @Override public List<? extends Type> parameterTypes() {
-      return EnumUtils.fieldTypes(
-          typeFactory,
-          parameterRelTypes());
-    }
-
-    @Override public List<ImmutableBitSet> groupSets() {
-      return groupSets;
-    }
-
-    @Override public List<Integer> keyOrdinals() {
-      return groupSet.asList();
-    }
-
-    @Override public List<? extends RelDataType> keyRelTypes() {
-      return EnumUtils.fieldRowTypes(getInput().getRowType(), null,
-          groupSet.asList());
-    }
-
-    @Override public List<? extends Type> keyTypes() {
-      return EnumUtils.fieldTypes(typeFactory, keyRelTypes());
-    }
-  }
-
-  protected void createAccumulatorAdders(
-      final ParameterExpression inParameter,
-      final List<AggImpState> aggs,
-      final PhysType accPhysType,
-      final ParameterExpression accExpr,
-      final PhysType inputPhysType,
-      final BlockBuilder builder,
-      EnumerableRelImplementor implementor,
-      JavaTypeFactory typeFactory) {
-    for (int i = 0, stateOffset = 0; i < aggs.size(); i++) {
-      final BlockBuilder builder2 = new BlockBuilder();
-      final AggImpState agg = aggs.get(i);
-
-      final int stateSize = requireNonNull(agg.state, "agg.state").size();
-      final List<Expression> accumulator = new ArrayList<>(stateSize);
-      for (int j = 0; j < stateSize; j++) {
-        accumulator.add(accPhysType.fieldReference(accExpr, j + stateOffset));
-      }
-      agg.state = accumulator;
-
-      stateOffset += stateSize;
-
-      AggAddContext addContext =
-          new AggAddContextImpl(builder2, accumulator) {
-            @Override public List<RexNode> rexArguments() {
-              List<RelDataTypeField> inputTypes =
-                  inputPhysType.getRowType().getFieldList();
-              List<RexNode> args = new ArrayList<>();
-              for (int index : agg.call.getArgList()) {
-                args.add(RexInputRef.of(index, inputTypes));
-              }
-              return args;
+    /**
+     * Implements the [AggregateLambdaFactory].
+     *
+     *
+     * Behavior depends upon ordering:
+     *
+     *
+     *  * `hasOrderedCall == true` means there is at least one aggregate
+     * call including sort spec. We use [LazyAggregateLambdaFactory]
+     * implementation to implement sorted aggregates for that.
+     *
+     *  * `hasOrderedCall == false` indicates to use
+     * [BasicAggregateLambdaFactory] to implement a non-sort
+     * aggregate.
+     *
+     *
+     */
+    protected fun implementLambdaFactory(
+        builder: BlockBuilder,
+        inputPhysType: PhysType, aggs: List<AggImpState?>,
+        accumulatorInitializer: Expression?, hasOrderedCall: Boolean,
+        lambdaFactory: ParameterExpression?
+    ) {
+        if (hasOrderedCall) {
+            val pe: ParameterExpression = Expressions.parameter(
+                List::class.java,
+                builder.newName("lazyAccumulators")
+            )
+            builder.add(
+                Expressions.declare(0, pe, Expressions.new_(LinkedList::class.java))
+            )
+            for (agg in aggs) {
+                if (agg.call.collation.equals(RelCollations.EMPTY)) {
+                    // if the call does not require ordering, fallback to
+                    // use a non-sorted lazy accumulator.
+                    builder.add(
+                        Expressions.statement(
+                            Expressions.call(
+                                pe,
+                                BuiltInMethod.COLLECTION_ADD.method,
+                                Expressions.new_(
+                                    BuiltInMethod.BASIC_LAZY_ACCUMULATOR.constructor,
+                                    requireNonNull(agg.accumulatorAdder, "agg.accumulatorAdder")
+                                )
+                            )
+                        )
+                    )
+                    continue
+                }
+                val pair: Pair<Expression, Expression> = inputPhysType.generateCollationKey(
+                    agg.call.collation.getFieldCollations()
+                )
+                builder.add(
+                    Expressions.statement(
+                        Expressions.call(
+                            pe,
+                            BuiltInMethod.COLLECTION_ADD.method,
+                            Expressions.new_(
+                                BuiltInMethod.SOURCE_SORTER.constructor,
+                                requireNonNull(agg.accumulatorAdder, "agg.accumulatorAdder"),
+                                pair.left, pair.right
+                            )
+                        )
+                    )
+                )
             }
-
-            @Override public @Nullable RexNode rexFilterArgument() {
-              return agg.call.filterArg < 0
-                  ? null
-                  : RexInputRef.of(agg.call.filterArg,
-                      inputPhysType.getRowType());
+            builder.add(
+                Expressions.declare(
+                    0, lambdaFactory,
+                    Expressions.new_(
+                        BuiltInMethod.LAZY_AGGREGATE_LAMBDA_FACTORY.constructor,
+                        accumulatorInitializer, pe
+                    )
+                )
+            )
+        } else {
+            // when hasOrderedCall == false
+            val pe: ParameterExpression = Expressions.parameter(
+                List::class.java,
+                builder.newName("accumulatorAdders")
+            )
+            builder.add(
+                Expressions.declare(0, pe, Expressions.new_(LinkedList::class.java))
+            )
+            for (agg in aggs) {
+                builder.add(
+                    Expressions.statement(
+                        Expressions.call(
+                            pe, BuiltInMethod.COLLECTION_ADD.method,
+                            requireNonNull(agg.accumulatorAdder, "agg.accumulatorAdder")
+                        )
+                    )
+                )
             }
-
-            @Override public RexToLixTranslator rowTranslator() {
-              return RexToLixTranslator.forAggregation(typeFactory,
-                  currentBlock(),
-                  new RexToLixTranslator.InputGetterImpl(inParameter,
-                      inputPhysType),
-                  implementor.getConformance());
-            }
-          };
-
-      agg.implementor.implementAdd(requireNonNull(agg.context, "agg.context"), addContext);
-      builder2.add(accExpr);
-      agg.accumulatorAdder = builder.append("accumulatorAdder",
-          Expressions.lambda(Function2.class, builder2.toBlock(), accExpr,
-              inParameter));
-    }
-  }
-
-  protected List<Type> createAggStateTypes(
-      final List<Expression> initExpressions,
-      final BlockBuilder initBlock,
-      final List<AggImpState> aggs,
-      JavaTypeFactory typeFactory) {
-    final List<Type> aggStateTypes = new ArrayList<>();
-    for (final AggImpState agg : aggs) {
-      agg.context = new AggContextImpl(agg, typeFactory);
-      final List<Type> state = agg.implementor.getStateType(agg.context);
-
-      if (state.isEmpty()) {
-        agg.state = ImmutableList.of();
-        continue;
-      }
-
-      aggStateTypes.addAll(state);
-
-      final List<Expression> decls = new ArrayList<>(state.size());
-      for (int i = 0; i < state.size(); i++) {
-        String aggName = "a" + agg.aggIdx;
-        if (CalciteSystemProperty.DEBUG.value()) {
-          aggName = Util.toJavaId(agg.call.getAggregation().getName(), 0)
-              .substring("ID$0$".length()) + aggName;
+            builder.add(
+                Expressions.declare(
+                    0, lambdaFactory,
+                    Expressions.new_(
+                        BuiltInMethod.BASIC_AGGREGATE_LAMBDA_FACTORY.constructor,
+                        accumulatorInitializer, pe
+                    )
+                )
+            )
         }
-        Type type = state.get(i);
-        ParameterExpression pe =
-            Expressions.parameter(type,
-                initBlock.newName(aggName + "s" + i));
-        initBlock.add(Expressions.declare(0, pe, null));
-        decls.add(pe);
-      }
-      agg.state = decls;
-      initExpressions.addAll(decls);
-      agg.implementor.implementReset(agg.context,
-          new AggResultContextImpl(initBlock, agg.call, decls, null, null));
     }
-    return aggStateTypes;
-  }
+
+    /** An implementation of [AggContext].  */
+    protected inner class AggContextImpl internal constructor(agg: AggImpState, typeFactory: JavaTypeFactory) :
+        AggContext {
+        private val agg: AggImpState
+        private val typeFactory: JavaTypeFactory
+
+        init {
+            this.agg = agg
+            this.typeFactory = typeFactory
+        }
+
+        @Override
+        fun aggregation(): SqlAggFunction {
+            return agg.call.getAggregation()
+        }
+
+        @Override
+        fun returnRelType(): RelDataType {
+            return agg.call.type
+        }
+
+        @Override
+        fun returnType(): Type {
+            return EnumUtils.javaClass(typeFactory, returnRelType())
+        }
+
+        @Override
+        fun parameterRelTypes(): List<RelDataType?> {
+            return EnumUtils.fieldRowTypes(
+                getInput().getRowType(), null,
+                agg.call.getArgList()
+            )
+        }
+
+        @Override
+        fun parameterTypes(): List<Type?> {
+            return EnumUtils.fieldTypes(
+                typeFactory,
+                parameterRelTypes()
+            )
+        }
+
+        @Override
+        fun groupSets(): List<ImmutableBitSet> {
+            return groupSets
+        }
+
+        @Override
+        fun keyOrdinals(): List<Integer> {
+            return groupSet.asList()
+        }
+
+        @Override
+        fun keyRelTypes(): List<RelDataType?> {
+            return EnumUtils.fieldRowTypes(
+                getInput().getRowType(), null,
+                groupSet.asList()
+            )
+        }
+
+        @Override
+        fun keyTypes(): List<Type?> {
+            return EnumUtils.fieldTypes(typeFactory, keyRelTypes())
+        }
+    }
+
+    protected fun createAccumulatorAdders(
+        inParameter: ParameterExpression?,
+        aggs: List<AggImpState>,
+        accPhysType: PhysType,
+        accExpr: ParameterExpression?,
+        inputPhysType: PhysType,
+        builder: BlockBuilder,
+        implementor: EnumerableRelImplementor,
+        typeFactory: JavaTypeFactory?
+    ) {
+        var i = 0
+        var stateOffset = 0
+        while (i < aggs.size()) {
+            val builder2 = BlockBuilder()
+            val agg: AggImpState = aggs[i]
+            val stateSize: Int = requireNonNull(agg.state, "agg.state").size()
+            val accumulator: List<Expression> = ArrayList(stateSize)
+            for (j in 0 until stateSize) {
+                accumulator.add(accPhysType.fieldReference(accExpr, j + stateOffset))
+            }
+            agg.state = accumulator
+            stateOffset += stateSize
+            val addContext: AggAddContext = object : AggAddContextImpl(builder2, accumulator) {
+                @Override
+                fun rexArguments(): List<RexNode> {
+                    val inputTypes: List<RelDataTypeField> = inputPhysType.getRowType().getFieldList()
+                    val args: List<RexNode> = ArrayList()
+                    for (index in agg.call.getArgList()) {
+                        args.add(RexInputRef.of(index, inputTypes))
+                    }
+                    return args
+                }
+
+                @Override
+                @Nullable
+                fun rexFilterArgument(): RexNode? {
+                    return if (agg.call.filterArg < 0) null else RexInputRef.of(
+                        agg.call.filterArg,
+                        inputPhysType.getRowType()
+                    )
+                }
+
+                @Override
+                fun rowTranslator(): RexToLixTranslator {
+                    return RexToLixTranslator.forAggregation(
+                        typeFactory,
+                        currentBlock(),
+                        InputGetterImpl(
+                            inParameter,
+                            inputPhysType
+                        ),
+                        implementor.getConformance()
+                    )
+                }
+            }
+            agg.implementor.implementAdd(requireNonNull(agg.context, "agg.context"), addContext)
+            builder2.add(accExpr)
+            agg.accumulatorAdder = builder.append(
+                "accumulatorAdder",
+                Expressions.lambda(
+                    Function2::class.java, builder2.toBlock(), accExpr,
+                    inParameter
+                )
+            )
+            i++
+        }
+    }
+
+    protected fun createAggStateTypes(
+        initExpressions: List<Expression?>,
+        initBlock: BlockBuilder,
+        aggs: List<AggImpState?>,
+        typeFactory: JavaTypeFactory?
+    ): List<Type> {
+        val aggStateTypes: List<Type> = ArrayList()
+        for (agg in aggs) {
+            agg.context = AggContextImpl(agg, typeFactory)
+            val state: List<Type> = agg.implementor.getStateType(agg.context)
+            if (state.isEmpty()) {
+                agg.state = ImmutableList.of()
+                continue
+            }
+            aggStateTypes.addAll(state)
+            val decls: List<Expression> = ArrayList(state.size())
+            for (i in 0 until state.size()) {
+                var aggName = "a" + agg.aggIdx
+                if (CalciteSystemProperty.DEBUG.value()) {
+                    aggName = Util.toJavaId(agg.call.getAggregation().getName(), 0)
+                        .substring("ID$0$".length()) + aggName
+                }
+                val type: Type = state[i]
+                val pe: ParameterExpression = Expressions.parameter(
+                    type,
+                    initBlock.newName(aggName + "s" + i)
+                )
+                initBlock.add(Expressions.declare(0, pe, null))
+                decls.add(pe)
+            }
+            agg.state = decls
+            initExpressions.addAll(decls)
+            agg.implementor.implementReset(
+                agg.context,
+                AggResultContextImpl(initBlock, agg.call, decls, null, null)
+            )
+        }
+        return aggStateTypes
+    }
+
+    companion object {
+        protected fun hasOrderedCall(aggs: List<AggImpState?>): Boolean {
+            for (agg in aggs) {
+                if (!agg.call.collation.equals(RelCollations.EMPTY)) {
+                    return true
+                }
+            }
+            return false
+        }
+    }
 }

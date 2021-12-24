@@ -14,37 +14,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.calcite.rel.core.Collect;
+import org.apache.calcite.plan.Convention
 
 /**
- * Rule to convert an {@link org.apache.calcite.rel.core.Collect} to an
- * {@link EnumerableCollect}.
+ * Rule to convert an [org.apache.calcite.rel.core.Collect] to an
+ * [EnumerableCollect].
  *
- * @see EnumerableRules#ENUMERABLE_COLLECT_RULE
+ * @see EnumerableRules.ENUMERABLE_COLLECT_RULE
  */
-class EnumerableCollectRule extends ConverterRule {
-  /** Default configuration. */
-  public static final Config DEFAULT_CONFIG = Config.INSTANCE
-      .withConversion(Collect.class, Convention.NONE,
-          EnumerableConvention.INSTANCE, "EnumerableCollectRule")
-      .withRuleFactory(EnumerableCollectRule::new);
+class EnumerableCollectRule
+/** Called from the Config.  */
+protected constructor(config: Config?) : ConverterRule(config) {
+    @Override
+    fun convert(rel: RelNode): RelNode {
+        val collect: Collect = rel as Collect
+        val input: RelNode = collect.getInput()
+        return EnumerableCollect.create(
+            convert(
+                input,
+                input.getTraitSet().replace(EnumerableConvention.INSTANCE)
+            ),
+            collect.getRowType()
+        )
+    }
 
-  /** Called from the Config. */
-  protected EnumerableCollectRule(Config config) {
-    super(config);
-  }
-
-  @Override public RelNode convert(RelNode rel) {
-    final Collect collect = (Collect) rel;
-    final RelNode input = collect.getInput();
-    return EnumerableCollect.create(
-        convert(input,
-            input.getTraitSet().replace(EnumerableConvention.INSTANCE)),
-        collect.getRowType());
-  }
+    companion object {
+        /** Default configuration.  */
+        val DEFAULT_CONFIG: Config = Config.INSTANCE
+            .withConversion(
+                Collect::class.java, Convention.NONE,
+                EnumerableConvention.INSTANCE, "EnumerableCollectRule"
+            )
+            .withRuleFactory { config: Config? -> EnumerableCollectRule(config) }
+    }
 }

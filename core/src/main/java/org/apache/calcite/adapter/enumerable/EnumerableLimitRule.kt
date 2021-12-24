@@ -14,66 +14,63 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelRule;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Sort;
-
-import org.immutables.value.Value;
+import org.apache.calcite.plan.RelOptRuleCall
 
 /**
- * Rule to convert an {@link org.apache.calcite.rel.core.Sort} that has
- * {@code offset} or {@code fetch} set to an
- * {@link EnumerableLimit}
- * on top of a "pure" {@code Sort} that has no offset or fetch.
+ * Rule to convert an [org.apache.calcite.rel.core.Sort] that has
+ * `offset` or `fetch` set to an
+ * [EnumerableLimit]
+ * on top of a "pure" `Sort` that has no offset or fetch.
  *
- * @see EnumerableRules#ENUMERABLE_LIMIT_RULE
+ * @see EnumerableRules.ENUMERABLE_LIMIT_RULE
  */
 @Value.Enclosing
-public class EnumerableLimitRule
-    extends RelRule<EnumerableLimitRule.Config> {
-  /** Creates an EnumerableLimitRule. */
-  protected EnumerableLimitRule(Config config) {
-    super(config);
-  }
-
-  @Deprecated // to be removed before 2.0
-  EnumerableLimitRule() {
-    this(Config.DEFAULT);
-  }
-
-  @Override public void onMatch(RelOptRuleCall call) {
-    final Sort sort = call.rel(0);
-    if (sort.offset == null && sort.fetch == null) {
-      return;
+class EnumerableLimitRule
+/** Creates an EnumerableLimitRule.  */
+protected constructor(config: Config?) : RelRule<EnumerableLimitRule.Config?>(config) {
+    @Deprecated
+    internal constructor() : this(Config.DEFAULT) {
     }
-    RelNode input = sort.getInput();
-    if (!sort.getCollation().getFieldCollations().isEmpty()) {
-      // Create a sort with the same sort key, but no offset or fetch.
-      input = sort.copy(
-          sort.getTraitSet(),
-          input,
-          sort.getCollation(),
-          null,
-          null);
-    }
-    call.transformTo(
-        EnumerableLimit.create(
-            convert(input, input.getTraitSet().replace(EnumerableConvention.INSTANCE)),
-            sort.offset,
-            sort.fetch));
-  }
 
-  /** Rule configuration. */
-  @Value.Immutable
-  public interface Config extends RelRule.Config {
-    Config DEFAULT = ImmutableEnumerableLimitRule.Config.of()
-        .withOperandSupplier(b -> b.operand(Sort.class).anyInputs());
-
-    @Override default EnumerableLimitRule toRule() {
-      return new EnumerableLimitRule(this);
+    @Override
+    fun onMatch(call: RelOptRuleCall) {
+        val sort: Sort = call.rel(0)
+        if (sort.offset == null && sort.fetch == null) {
+            return
+        }
+        var input: RelNode = sort.getInput()
+        if (!sort.getCollation().getFieldCollations().isEmpty()) {
+            // Create a sort with the same sort key, but no offset or fetch.
+            input = sort.copy(
+                sort.getTraitSet(),
+                input,
+                sort.getCollation(),
+                null,
+                null
+            )
+        }
+        call.transformTo(
+            EnumerableLimit.create(
+                convert(input, input.getTraitSet().replace(EnumerableConvention.INSTANCE)),
+                sort.offset,
+                sort.fetch
+            )
+        )
     }
-  }
+
+    /** Rule configuration.  */
+    @Value.Immutable
+    interface Config : RelRule.Config {
+        @Override
+        fun toRule(): EnumerableLimitRule {
+            return EnumerableLimitRule(this)
+        }
+
+        companion object {
+            val DEFAULT: Config = ImmutableEnumerableLimitRule.Config.of()
+                .withOperandSupplier { b -> b.operand(Sort::class.java).anyInputs() }
+        }
+    }
 }

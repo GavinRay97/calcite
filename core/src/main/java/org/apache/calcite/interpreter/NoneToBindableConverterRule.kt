@@ -14,36 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.interpreter;
+package org.apache.calcite.interpreter
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterRule;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.apache.calcite.plan.Convention
 
 /**
  * Rule to convert a relational expression from
- * {@link org.apache.calcite.plan.Convention#NONE}
- * to {@link org.apache.calcite.interpreter.BindableConvention}.
+ * [org.apache.calcite.plan.Convention.NONE]
+ * to [org.apache.calcite.interpreter.BindableConvention].
  *
- * @see Bindables#FROM_NONE_RULE
+ * @see Bindables.FROM_NONE_RULE
  */
-public class NoneToBindableConverterRule extends ConverterRule {
-  /** Default configuration. */
-  public static final Config DEFAULT_CONFIG = Config.INSTANCE
-      .withConversion(RelNode.class, Convention.NONE,
-          BindableConvention.INSTANCE, "NoneToBindableConverterRule")
-      .withRuleFactory(NoneToBindableConverterRule::new);
+class NoneToBindableConverterRule
+/** Called from the Config.  */
+protected constructor(config: Config?) : ConverterRule(config) {
+    @Override
+    @Nullable
+    fun convert(rel: RelNode): RelNode {
+        val newTraitSet: RelTraitSet = rel.getTraitSet().replace(getOutConvention())
+        return InterpretableConverter(rel.getCluster(), newTraitSet, rel)
+    }
 
-  /** Called from the Config. */
-  protected NoneToBindableConverterRule(Config config) {
-    super(config);
-  }
-
-  @Override public @Nullable RelNode convert(RelNode rel) {
-    RelTraitSet newTraitSet = rel.getTraitSet().replace(getOutConvention());
-    return new InterpretableConverter(rel.getCluster(), newTraitSet, rel);
-  }
+    companion object {
+        /** Default configuration.  */
+        val DEFAULT_CONFIG: Config = Config.INSTANCE
+            .withConversion(
+                RelNode::class.java, Convention.NONE,
+                BindableConvention.INSTANCE, "NoneToBindableConverterRule"
+            )
+            .withRuleFactory { config: Config? -> NoneToBindableConverterRule(config) }
+    }
 }

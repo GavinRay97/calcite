@@ -14,56 +14,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.rules.ProjectToCalcRule;
-import org.apache.calcite.rex.RexProgram;
-import org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.calcite.plan.RelOptRuleCall
 
-import org.immutables.value.Value;
-
-/** Variant of {@link org.apache.calcite.rel.rules.ProjectToCalcRule} for
- * {@link org.apache.calcite.adapter.enumerable.EnumerableConvention enumerable calling convention}.
+/** Variant of [org.apache.calcite.rel.rules.ProjectToCalcRule] for
+ * [enumerable calling convention][org.apache.calcite.adapter.enumerable.EnumerableConvention].
  *
- * @see EnumerableRules#ENUMERABLE_PROJECT_TO_CALC_RULE */
+ * @see EnumerableRules.ENUMERABLE_PROJECT_TO_CALC_RULE
+ */
 @Value.Enclosing
-public class EnumerableProjectToCalcRule extends ProjectToCalcRule {
-  /** Creates an EnumerableProjectToCalcRule. */
-  protected EnumerableProjectToCalcRule(Config config) {
-    super(config);
-  }
+class EnumerableProjectToCalcRule
+/** Creates an EnumerableProjectToCalcRule.  */
+protected constructor(config: Config?) : ProjectToCalcRule(config) {
+    @Deprecated // to be removed before 2.0
+    constructor(relBuilderFactory: RelBuilderFactory?) : this(
+        Config.DEFAULT.withRelBuilderFactory(relBuilderFactory)
+            .`as`(Config::class.java)
+    ) {
+    }
 
-  @Deprecated // to be removed before 2.0
-  public EnumerableProjectToCalcRule(RelBuilderFactory relBuilderFactory) {
-    this(Config.DEFAULT.withRelBuilderFactory(relBuilderFactory)
-        .as(Config.class));
-  }
-
-  @Override public void onMatch(RelOptRuleCall call) {
-    final EnumerableProject project = call.rel(0);
-    final RelNode input = project.getInput();
-    final RexProgram program =
-        RexProgram.create(input.getRowType(),
+    @Override
+    fun onMatch(call: RelOptRuleCall) {
+        val project: EnumerableProject = call.rel(0)
+        val input: RelNode = project.getInput()
+        val program: RexProgram = RexProgram.create(
+            input.getRowType(),
             project.getProjects(),
             null,
             project.getRowType(),
-            project.getCluster().getRexBuilder());
-    final EnumerableCalc calc = EnumerableCalc.create(input, program);
-    call.transformTo(calc);
-  }
-
-  /** Rule configuration. */
-  @Value.Immutable
-  @SuppressWarnings("immutables")
-  public interface Config extends ProjectToCalcRule.Config {
-    Config DEFAULT = ImmutableEnumerableProjectToCalcRule.Config.of()
-        .withOperandSupplier(b ->
-            b.operand(EnumerableProject.class).anyInputs());
-
-    @Override default EnumerableProjectToCalcRule toRule() {
-      return new EnumerableProjectToCalcRule(this);
+            project.getCluster().getRexBuilder()
+        )
+        val calc: EnumerableCalc = EnumerableCalc.create(input, program)
+        call.transformTo(calc)
     }
-  }
+
+    /** Rule configuration.  */
+    @Value.Immutable
+    @SuppressWarnings("immutables")
+    interface Config : ProjectToCalcRule.Config {
+        @Override
+        fun toRule(): EnumerableProjectToCalcRule {
+            return EnumerableProjectToCalcRule(this)
+        }
+
+        companion object {
+            val DEFAULT: Config = ImmutableEnumerableProjectToCalcRule.Config.of()
+                .withOperandSupplier { b -> b.operand(EnumerableProject::class.java).anyInputs() }
+        }
+    }
 }

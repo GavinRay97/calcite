@@ -14,100 +14,97 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.linq4j.function.Experimental;
-import org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelCollationTraitDef;
-import org.apache.calcite.rel.RelDistributionTraitDef;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Spool;
-import org.apache.calcite.rel.core.TableSpool;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.schema.ModifiableTable;
-import org.apache.calcite.util.BuiltInMethod;
+import org.apache.calcite.linq4j.function.Experimental
 
 /**
- * Implementation of {@link TableSpool} in
- * {@link EnumerableConvention enumerable calling convention}
- * that writes into a {@link ModifiableTable} (which must exist in the current
+ * Implementation of [TableSpool] in
+ * [enumerable calling convention][EnumerableConvention]
+ * that writes into a [ModifiableTable] (which must exist in the current
  * schema).
  *
- * <p>NOTE: The current API is experimental and subject to change without
+ *
+ * NOTE: The current API is experimental and subject to change without
  * notice.
  */
 @Experimental
-public class EnumerableTableSpool extends TableSpool implements EnumerableRel {
+class EnumerableTableSpool private constructor(
+    cluster: RelOptCluster, traitSet: RelTraitSet,
+    input: RelNode, readType: Type, writeType: Type, table: RelOptTable
+) : TableSpool(cluster, traitSet, input, readType, writeType, table), EnumerableRel {
+    @Override
+    fun implement(implementor: EnumerableRelImplementor, pref: Prefer): Result {
+        // TODO for the moment only LAZY read & write is supported
+        if (readType !== Type.LAZY || writeType !== Type.LAZY) {
+            throw UnsupportedOperationException(
+                "EnumerableTableSpool supports for the moment only LAZY read and LAZY write"
+            )
+        }
 
-  private EnumerableTableSpool(RelOptCluster cluster, RelTraitSet traitSet,
-      RelNode input, Type readType, Type writeType, RelOptTable table) {
-    super(cluster, traitSet, input, readType, writeType, table);
-  }
-
-  /** Creates an EnumerableTableSpool. */
-  public static EnumerableTableSpool create(RelNode input, Type readType,
-      Type writeType, RelOptTable table) {
-    RelOptCluster cluster = input.getCluster();
-    RelMetadataQuery mq = cluster.getMetadataQuery();
-    RelTraitSet traitSet = cluster.traitSetOf(EnumerableConvention.INSTANCE)
-        .replaceIfs(RelCollationTraitDef.INSTANCE,
-            () -> mq.collations(input))
-        .replaceIf(RelDistributionTraitDef.INSTANCE,
-            () -> mq.distribution(input));
-    return new EnumerableTableSpool(cluster, traitSet, input, readType, writeType, table);
-  }
-
-  @Override public Result implement(EnumerableRelImplementor implementor, Prefer pref) {
-    // TODO for the moment only LAZY read & write is supported
-    if (readType != Type.LAZY || writeType != Type.LAZY) {
-      throw new UnsupportedOperationException(
-          "EnumerableTableSpool supports for the moment only LAZY read and LAZY write");
+        //  ModifiableTable t = (ModifiableTable) root.getRootSchema().getTable(tableName);
+        //  return lazyCollectionSpool(t.getModifiableCollection(), <inputExp>);
+        val builder = BlockBuilder()
+        val input: RelNode = getInput()
+        val inputResult: Result = implementor.visitChild(this, 0, input as EnumerableRel, pref)
+        val tableName: String = table.getQualifiedName().get(table.getQualifiedName().size() - 1)
+        val tableExp: Expression = Expressions.convert_(
+            Expressions.call(
+                Expressions.call(
+                    implementor.getRootExpression(),
+                    BuiltInMethod.DATA_CONTEXT_GET_ROOT_SCHEMA.method
+                ),
+                BuiltInMethod.SCHEMA_GET_TABLE.method,
+                Expressions.constant(tableName, String::class.java)
+            ),
+            ModifiableTable::class.java
+        )
+        val collectionExp: Expression = Expressions.call(
+            tableExp,
+            BuiltInMethod.MODIFIABLE_TABLE_GET_MODIFIABLE_COLLECTION.method
+        )
+        val inputExp: Expression = builder.append("input", inputResult.block)
+        val spoolExp: Expression = Expressions.call(
+            BuiltInMethod.LAZY_COLLECTION_SPOOL.method,
+            collectionExp,
+            inputExp
+        )
+        builder.add(spoolExp)
+        val physType: PhysType = PhysTypeImpl.of(
+            implementor.getTypeFactory(),
+            getRowType(),
+            pref.prefer(inputResult.format)
+        )
+        return implementor.result(physType, builder.toBlock())
     }
 
-    //  ModifiableTable t = (ModifiableTable) root.getRootSchema().getTable(tableName);
-    //  return lazyCollectionSpool(t.getModifiableCollection(), <inputExp>);
+    @Override
+    protected fun copy(
+        traitSet: RelTraitSet, input: RelNode,
+        readType: Type, writeType: Type
+    ): Spool {
+        return EnumerableTableSpool(
+            input.getCluster(), traitSet, input,
+            readType, writeType, table
+        )
+    }
 
-    BlockBuilder builder = new BlockBuilder();
-
-    RelNode input = getInput();
-    Result inputResult = implementor.visitChild(this, 0, (EnumerableRel) input, pref);
-
-    String tableName = table.getQualifiedName().get(table.getQualifiedName().size() - 1);
-    Expression tableExp = Expressions.convert_(
-        Expressions.call(
-            Expressions.call(
-                implementor.getRootExpression(),
-                BuiltInMethod.DATA_CONTEXT_GET_ROOT_SCHEMA.method),
-            BuiltInMethod.SCHEMA_GET_TABLE.method,
-            Expressions.constant(tableName, String.class)),
-        ModifiableTable.class);
-    Expression collectionExp = Expressions.call(
-        tableExp,
-        BuiltInMethod.MODIFIABLE_TABLE_GET_MODIFIABLE_COLLECTION.method);
-
-    Expression inputExp = builder.append("input", inputResult.block);
-
-    Expression spoolExp = Expressions.call(
-        BuiltInMethod.LAZY_COLLECTION_SPOOL.method,
-        collectionExp,
-        inputExp);
-    builder.add(spoolExp);
-
-    PhysType physType = PhysTypeImpl.of(
-        implementor.getTypeFactory(),
-        getRowType(),
-        pref.prefer(inputResult.format));
-    return implementor.result(physType, builder.toBlock());
-  }
-
-  @Override protected Spool copy(RelTraitSet traitSet, RelNode input,
-      Type readType, Type writeType) {
-    return new EnumerableTableSpool(input.getCluster(), traitSet, input,
-        readType, writeType, table);
-  }
+    companion object {
+        /** Creates an EnumerableTableSpool.  */
+        fun create(
+            input: RelNode, readType: Type,
+            writeType: Type, table: RelOptTable
+        ): EnumerableTableSpool {
+            val cluster: RelOptCluster = input.getCluster()
+            val mq: RelMetadataQuery = cluster.getMetadataQuery()
+            val traitSet: RelTraitSet = cluster.traitSetOf(EnumerableConvention.INSTANCE)
+                .replaceIfs(
+                    RelCollationTraitDef.INSTANCE
+                ) { mq.collations(input) }
+                .replaceIf(
+                    RelDistributionTraitDef.INSTANCE
+                ) { mq.distribution(input) }
+            return EnumerableTableSpool(cluster, traitSet, input, readType, writeType, table)
+        }
+    }
 }

@@ -14,63 +14,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelRule;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexProgram;
-import org.apache.calcite.rex.RexProgramBuilder;
-import org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.calcite.plan.RelOptRuleCall
 
-import org.immutables.value.Value;
-
-/** Variant of {@link org.apache.calcite.rel.rules.FilterToCalcRule} for
- * {@link org.apache.calcite.adapter.enumerable.EnumerableConvention enumerable calling convention}.
+/** Variant of [org.apache.calcite.rel.rules.FilterToCalcRule] for
+ * [enumerable calling convention][org.apache.calcite.adapter.enumerable.EnumerableConvention].
  *
- * @see EnumerableRules#ENUMERABLE_FILTER_TO_CALC_RULE */
+ * @see EnumerableRules.ENUMERABLE_FILTER_TO_CALC_RULE
+ */
 @Value.Enclosing
-public class EnumerableFilterToCalcRule
-    extends RelRule<EnumerableFilterToCalcRule.Config> {
-  /** Creates an EnumerableFilterToCalcRule. */
-  protected EnumerableFilterToCalcRule(Config config) {
-    super(config);
-  }
-
-  @Deprecated // to be removed before 2.0
-  public EnumerableFilterToCalcRule(RelBuilderFactory relBuilderFactory) {
-    this(Config.DEFAULT.withRelBuilderFactory(relBuilderFactory)
-        .as(Config.class));
-  }
-
-  @Override public void onMatch(RelOptRuleCall call) {
-    final EnumerableFilter filter = call.rel(0);
-    final RelNode input = filter.getInput();
-
-    // Create a program containing a filter.
-    final RexBuilder rexBuilder = filter.getCluster().getRexBuilder();
-    final RelDataType inputRowType = input.getRowType();
-    final RexProgramBuilder programBuilder =
-        new RexProgramBuilder(inputRowType, rexBuilder);
-    programBuilder.addIdentity();
-    programBuilder.addCondition(filter.getCondition());
-    final RexProgram program = programBuilder.getProgram();
-
-    final EnumerableCalc calc = EnumerableCalc.create(input, program);
-    call.transformTo(calc);
-  }
-
-  /** Rule configuration. */
-  @Value.Immutable
-  public interface Config extends RelRule.Config {
-    Config DEFAULT = ImmutableEnumerableFilterToCalcRule.Config.of()
-        .withOperandSupplier(b ->
-            b.operand(EnumerableFilter.class).anyInputs());
-
-    @Override default EnumerableFilterToCalcRule toRule() {
-      return new EnumerableFilterToCalcRule(this);
+class EnumerableFilterToCalcRule
+/** Creates an EnumerableFilterToCalcRule.  */
+protected constructor(config: Config?) : RelRule<EnumerableFilterToCalcRule.Config?>(config) {
+    @Deprecated // to be removed before 2.0
+    constructor(relBuilderFactory: RelBuilderFactory?) : this(
+        Config.DEFAULT.withRelBuilderFactory(relBuilderFactory)
+            .`as`(Config::class.java)
+    ) {
     }
-  }
+
+    @Override
+    fun onMatch(call: RelOptRuleCall) {
+        val filter: EnumerableFilter = call.rel(0)
+        val input: RelNode = filter.getInput()
+
+        // Create a program containing a filter.
+        val rexBuilder: RexBuilder = filter.getCluster().getRexBuilder()
+        val inputRowType: RelDataType = input.getRowType()
+        val programBuilder = RexProgramBuilder(inputRowType, rexBuilder)
+        programBuilder.addIdentity()
+        programBuilder.addCondition(filter.getCondition())
+        val program: RexProgram = programBuilder.getProgram()
+        val calc: EnumerableCalc = EnumerableCalc.create(input, program)
+        call.transformTo(calc)
+    }
+
+    /** Rule configuration.  */
+    @Value.Immutable
+    interface Config : RelRule.Config {
+        @Override
+        fun toRule(): EnumerableFilterToCalcRule {
+            return EnumerableFilterToCalcRule(this)
+        }
+
+        companion object {
+            val DEFAULT: Config = ImmutableEnumerableFilterToCalcRule.Config.of()
+                .withOperandSupplier { b -> b.operand(EnumerableFilter::class.java).anyInputs() }
+        }
+    }
 }

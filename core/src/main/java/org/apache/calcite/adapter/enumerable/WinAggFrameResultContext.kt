@@ -14,53 +14,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.linq4j.tree.Expression;
+import org.apache.calcite.linq4j.tree.Expression
 
 /**
  * Provides information on the current window when computing the result of
  * the aggregation.
  */
-public interface WinAggFrameResultContext extends WinAggFrameContext {
-  /**
-   * Converts absolute index position of the given relative position.
-   * @param offset offset of the requested row
-   * @param seekType the type of offset (start of window, end of window, etc)
-   * @return absolute position of the requested row
-   */
-  Expression computeIndex(Expression offset,
-      WinAggImplementor.SeekType seekType);
+interface WinAggFrameResultContext : WinAggFrameContext {
+    /**
+     * Converts absolute index position of the given relative position.
+     * @param offset offset of the requested row
+     * @param seekType the type of offset (start of window, end of window, etc)
+     * @return absolute position of the requested row
+     */
+    fun computeIndex(
+        offset: Expression?,
+        seekType: WinAggImplementor.SeekType?
+    ): Expression?
 
-  /**
-   * Returns boolean the expression that checks if the given index is in
-   * the frame bounds.
-   * @param rowIndex index if the row to check
-   * @return expression that validates frame bounds for the given index
-   */
-  Expression rowInFrame(Expression rowIndex);
+    /**
+     * Returns boolean the expression that checks if the given index is in
+     * the frame bounds.
+     * @param rowIndex index if the row to check
+     * @return expression that validates frame bounds for the given index
+     */
+    fun rowInFrame(rowIndex: Expression?): Expression?
 
-  /**
-   * Returns boolean the expression that checks if the given index is in
-   * the partition bounds.
-   * @param rowIndex index if the row to check
-   * @return expression that validates partition bounds for the given index
-   */
-  Expression rowInPartition(Expression rowIndex);
+    /**
+     * Returns boolean the expression that checks if the given index is in
+     * the partition bounds.
+     * @param rowIndex index if the row to check
+     * @return expression that validates partition bounds for the given index
+     */
+    fun rowInPartition(rowIndex: Expression?): Expression?
 
-  /**
-   * Returns row translator for given absolute row position.
-   * @param rowIndex absolute index of the row.
-   * @return translator for the requested row
-   */
-  RexToLixTranslator rowTranslator(Expression rowIndex);
+    /**
+     * Returns row translator for given absolute row position.
+     * @param rowIndex absolute index of the row.
+     * @return translator for the requested row
+     */
+    fun rowTranslator(rowIndex: Expression?): RexToLixTranslator?
 
-  /**
-   * Compares two rows given by absolute positions according to the order
-   * collation of the current window.
-   * @param a absolute index of the first row
-   * @param b absolute index of the second row
-   * @return result of comparison as as in {@link Comparable#compareTo}
-   */
-  Expression compareRows(Expression a, Expression b);
+    /**
+     * Compares two rows given by absolute positions according to the order
+     * collation of the current window.
+     * @param a absolute index of the first row
+     * @param b absolute index of the second row
+     * @return result of comparison as as in [Comparable.compareTo]
+     */
+    fun compareRows(a: Expression?, b: Expression?): Expression?
 }

@@ -14,66 +14,77 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.interpreter;
+package org.apache.calcite.interpreter
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTrait;
-import org.apache.calcite.plan.RelTraitDef;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.apache.calcite.plan.Convention
+import org.apache.calcite.plan.ConventionTraitDef
+import org.apache.calcite.plan.RelOptPlanner
+import org.apache.calcite.plan.RelTrait
+import org.apache.calcite.plan.RelTraitDef
+import org.apache.calcite.plan.RelTraitSet
+import org.apache.calcite.rel.RelNode
 
 /**
  * Calling convention that returns results as an
- * {@link org.apache.calcite.linq4j.Enumerable} of object arrays.
+ * [org.apache.calcite.linq4j.Enumerable] of object arrays.
  *
- * <p>The relational expression needs to implement
- * {@link org.apache.calcite.runtime.ArrayBindable}.
- * Unlike {@link org.apache.calcite.adapter.enumerable.EnumerableConvention},
+ *
+ * The relational expression needs to implement
+ * [org.apache.calcite.runtime.ArrayBindable].
+ * Unlike [org.apache.calcite.adapter.enumerable.EnumerableConvention],
  * no code generation is required.
  */
-public enum BindableConvention implements Convention {
-  INSTANCE;
+enum class BindableConvention : Convention {
+    INSTANCE;
 
-  /** Cost of a bindable node versus implementing an equivalent node in a
-   * "typical" calling convention. */
-  public static final double COST_MULTIPLIER = 2.0d;
+    @Override
+    override fun toString(): String {
+        return name
+    }
 
-  @Override public String toString() {
-    return getName();
-  }
+    @get:Override
+    val `interface`: Class
+        get() = BindableRel::class.java
 
-  @Override public Class getInterface() {
-    return BindableRel.class;
-  }
+    @get:Override
+    override val name: String
+        get() = "BINDABLE"
 
-  @Override public String getName() {
-    return "BINDABLE";
-  }
+    @Override
+    @Nullable
+    fun enforce(input: RelNode?, required: RelTraitSet?): RelNode? {
+        return null
+    }
 
-  @Override public @Nullable RelNode enforce(RelNode input, RelTraitSet required) {
-    return null;
-  }
+    @get:Override
+    val traitDef: RelTraitDef
+        get() = ConventionTraitDef.INSTANCE
 
-  @Override public RelTraitDef getTraitDef() {
-    return ConventionTraitDef.INSTANCE;
-  }
+    @Override
+    fun satisfies(trait: RelTrait): Boolean {
+        return this == trait
+    }
 
-  @Override public boolean satisfies(RelTrait trait) {
-    return this == trait;
-  }
+    @Override
+    fun register(planner: RelOptPlanner?) {
+    }
 
-  @Override public void register(RelOptPlanner planner) {}
+    @Override
+    fun canConvertConvention(toConvention: Convention?): Boolean {
+        return false
+    }
 
-  @Override public boolean canConvertConvention(Convention toConvention) {
-    return false;
-  }
+    @Override
+    fun useAbstractConvertersForConversion(
+        fromTraits: RelTraitSet?,
+        toTraits: RelTraitSet?
+    ): Boolean {
+        return false
+    }
 
-  @Override public boolean useAbstractConvertersForConversion(RelTraitSet fromTraits,
-      RelTraitSet toTraits) {
-    return false;
-  }
+    companion object {
+        /** Cost of a bindable node versus implementing an equivalent node in a
+         * "typical" calling convention.  */
+        const val COST_MULTIPLIER = 2.0
+    }
 }

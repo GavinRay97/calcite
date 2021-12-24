@@ -14,34 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.interpreter;
+package org.apache.calcite.interpreter
 
-import org.apache.calcite.rel.core.Collect;
-
-import com.google.common.collect.ImmutableList;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.apache.calcite.rel.core.Collect
 
 /**
  * Interpreter node that implements a
- * {@link org.apache.calcite.rel.core.Collect}.
+ * [org.apache.calcite.rel.core.Collect].
  */
-public class CollectNode extends AbstractSingleNode<Collect> {
-
-  public CollectNode(Compiler compiler, Collect rel) {
-    super(compiler, rel);
-  }
-
-  @Override public void run() throws InterruptedException {
-    Row row;
-    List<@Nullable Object[]> values = new ArrayList<>();
-    while ((row = source.receive()) != null) {
-      values.add(row.getValues());
+class CollectNode(compiler: Compiler?, rel: Collect?) : AbstractSingleNode<Collect?>(compiler, rel) {
+    @Override
+    @Throws(InterruptedException::class)
+    fun run() {
+        var row: Row
+        val values: List<Array<Object>> = ArrayList()
+        while (source.receive().also { row = it } != null) {
+            values.add(row.getValues())
+        }
+        row = Row.of(ImmutableList.copyOf(values))
+        sink.send(row)
     }
-    row = Row.of(ImmutableList.copyOf(values));
-    sink.send(row);
-  }
 }

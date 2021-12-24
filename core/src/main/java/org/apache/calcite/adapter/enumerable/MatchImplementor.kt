@@ -14,31 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.ParameterExpression;
-import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.linq4j.tree.Expression
 
-/** Implementor of Functions used in MATCH_RECOGNIZE Context. */
-public interface MatchImplementor {
-
-  /**
-   * Implements a call.
-   *
-   * @param translator Translator for the call
-   * @param call Call that should be implemented
-   * @param row Current Row
-   * @param rows All Rows that are traversed so far
-   * @param symbols All Symbols of the rows that were traversed so far
-   * @return Translated call
-   */
-  Expression implement(
-      RexToLixTranslator translator,
-      RexCall call,
-      ParameterExpression row,
-      ParameterExpression rows,
-      ParameterExpression symbols,
-      ParameterExpression currentIndex);
-
+/** Implementor of Functions used in MATCH_RECOGNIZE Context.  */
+interface MatchImplementor {
+    /**
+     * Implements a call.
+     *
+     * @param translator Translator for the call
+     * @param call Call that should be implemented
+     * @param row Current Row
+     * @param rows All Rows that are traversed so far
+     * @param symbols All Symbols of the rows that were traversed so far
+     * @return Translated call
+     */
+    fun implement(
+        translator: RexToLixTranslator?,
+        call: RexCall?,
+        row: ParameterExpression?,
+        rows: ParameterExpression?,
+        symbols: ParameterExpression?,
+        currentIndex: ParameterExpression?
+    ): Expression?
 }

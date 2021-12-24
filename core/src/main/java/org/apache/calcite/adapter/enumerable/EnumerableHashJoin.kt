@@ -14,265 +14,264 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.plan.DeriveMode;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelCollationTraitDef;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelNodes;
-import org.apache.calcite.rel.core.CorrelationId;
-import org.apache.calcite.rel.core.Join;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.metadata.RelMdCollation;
-import org.apache.calcite.rel.metadata.RelMdUtil;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexUtil;
-import org.apache.calcite.util.BuiltInMethod;
-import org.apache.calcite.util.ImmutableIntList;
-import org.apache.calcite.util.Pair;
-import org.apache.calcite.util.Util;
+import org.apache.calcite.linq4j.tree.BlockBuilder
 
-import com.google.common.collect.ImmutableList;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.lang.reflect.Method;
-import java.util.List;
-import java.util.Set;
-
-/** Implementation of {@link org.apache.calcite.rel.core.Join} in
- * {@link org.apache.calcite.adapter.enumerable.EnumerableConvention enumerable calling convention}. */
-public class EnumerableHashJoin extends Join implements EnumerableRel {
-  /** Creates an EnumerableHashJoin.
-   *
-   * <p>Use {@link #create} unless you know what you're doing. */
-  protected EnumerableHashJoin(
-      RelOptCluster cluster,
-      RelTraitSet traits,
-      RelNode left,
-      RelNode right,
-      RexNode condition,
-      Set<CorrelationId> variablesSet,
-      JoinRelType joinType) {
-    super(
-        cluster,
-        traits,
-        ImmutableList.of(),
-        left,
-        right,
-        condition,
-        variablesSet,
-        joinType);
-  }
-
-  @Deprecated // to be removed before 2.0
-  protected EnumerableHashJoin(RelOptCluster cluster, RelTraitSet traits,
-      RelNode left, RelNode right, RexNode condition, ImmutableIntList leftKeys,
-      ImmutableIntList rightKeys, JoinRelType joinType,
-      Set<String> variablesStopped) {
-    this(cluster, traits, left, right, condition, CorrelationId.setOf(variablesStopped), joinType);
-  }
-
-  /** Creates an EnumerableHashJoin. */
-  public static EnumerableHashJoin create(
-      RelNode left,
-      RelNode right,
-      RexNode condition,
-      Set<CorrelationId> variablesSet,
-      JoinRelType joinType) {
-    final RelOptCluster cluster = left.getCluster();
-    final RelMetadataQuery mq = cluster.getMetadataQuery();
-    final RelTraitSet traitSet =
-        cluster.traitSetOf(EnumerableConvention.INSTANCE)
-            .replaceIfs(RelCollationTraitDef.INSTANCE,
-                () -> RelMdCollation.enumerableHashJoin(mq, left, right, joinType));
-    return new EnumerableHashJoin(cluster, traitSet, left, right, condition,
-        variablesSet, joinType);
-  }
-
-  @Override public EnumerableHashJoin copy(RelTraitSet traitSet, RexNode condition,
-      RelNode left, RelNode right, JoinRelType joinType,
-      boolean semiJoinDone) {
-    return new EnumerableHashJoin(getCluster(), traitSet, left, right,
-        condition, variablesSet, joinType);
-  }
-
-  @Override public @Nullable Pair<RelTraitSet, List<RelTraitSet>> passThroughTraits(
-      final RelTraitSet required) {
-    return EnumerableTraitsUtils.passThroughTraitsForJoin(
-        required, joinType, left.getRowType().getFieldCount(), getTraitSet());
-  }
-
-  @Override public @Nullable Pair<RelTraitSet, List<RelTraitSet>> deriveTraits(
-      final RelTraitSet childTraits, final int childId) {
-    // should only derive traits (limited to collation for now) from left join input.
-    return EnumerableTraitsUtils.deriveTraitsForJoin(
-        childTraits, childId, joinType, getTraitSet(), right.getTraitSet());
-  }
-
-  @Override public DeriveMode getDeriveMode() {
-    if (joinType == JoinRelType.FULL || joinType == JoinRelType.RIGHT) {
-      return DeriveMode.PROHIBITED;
+/** Implementation of [org.apache.calcite.rel.core.Join] in
+ * [enumerable calling convention][org.apache.calcite.adapter.enumerable.EnumerableConvention].  */
+class EnumerableHashJoin
+/** Creates an EnumerableHashJoin.
+ *
+ *
+ * Use [.create] unless you know what you're doing.  */
+protected constructor(
+    cluster: RelOptCluster?,
+    traits: RelTraitSet?,
+    left: RelNode?,
+    right: RelNode?,
+    condition: RexNode?,
+    variablesSet: Set<CorrelationId?>?,
+    joinType: JoinRelType?
+) : Join(
+    cluster,
+    traits,
+    ImmutableList.of(),
+    left,
+    right,
+    condition,
+    variablesSet,
+    joinType
+), EnumerableRel {
+    @Deprecated // to be removed before 2.0
+    protected constructor(
+        cluster: RelOptCluster?, traits: RelTraitSet?,
+        left: RelNode?, right: RelNode?, condition: RexNode?, leftKeys: ImmutableIntList?,
+        rightKeys: ImmutableIntList?, joinType: JoinRelType?,
+        variablesStopped: Set<String?>?
+    ) : this(cluster, traits, left, right, condition, CorrelationId.setOf(variablesStopped), joinType) {
     }
 
-    return DeriveMode.LEFT_FIRST;
-  }
-
-  @Override public @Nullable RelOptCost computeSelfCost(RelOptPlanner planner,
-      RelMetadataQuery mq) {
-    double rowCount = mq.getRowCount(this);
-
-    // Joins can be flipped, and for many algorithms, both versions are viable
-    // and have the same cost. To make the results stable between versions of
-    // the planner, make one of the versions slightly more expensive.
-    switch (joinType) {
-    case SEMI:
-    case ANTI:
-      // SEMI and ANTI join cannot be flipped
-      break;
-    case RIGHT:
-      rowCount = RelMdUtil.addEpsilon(rowCount);
-      break;
-    default:
-      if (RelNodes.COMPARATOR.compare(left, right) > 0) {
-        rowCount = RelMdUtil.addEpsilon(rowCount);
-      }
+    @Override
+    fun copy(
+        traitSet: RelTraitSet?, condition: RexNode?,
+        left: RelNode?, right: RelNode?, joinType: JoinRelType?,
+        semiJoinDone: Boolean
+    ): EnumerableHashJoin {
+        return EnumerableHashJoin(
+            getCluster(), traitSet, left, right,
+            condition, variablesSet, joinType
+        )
     }
 
-    // Cheaper if the smaller number of rows is coming from the LHS.
-    // Model this by adding L log L to the cost.
-    final double rightRowCount = right.estimateRowCount(mq);
-    final double leftRowCount = left.estimateRowCount(mq);
-    if (Double.isInfinite(leftRowCount)) {
-      rowCount = leftRowCount;
-    } else {
-      rowCount += Util.nLogN(leftRowCount);
+    @Override
+    @Nullable
+    override fun passThroughTraits(
+        required: RelTraitSet?
+    ): Pair<RelTraitSet, List<RelTraitSet>> {
+        return EnumerableTraitsUtils.passThroughTraitsForJoin(
+            required, joinType, left.getRowType().getFieldCount(), getTraitSet()
+        )
     }
-    if (Double.isInfinite(rightRowCount)) {
-      rowCount = rightRowCount;
-    } else {
-      rowCount += rightRowCount;
-    }
-    if (isSemiJoin()) {
-      return planner.getCostFactory().makeCost(rowCount, 0, 0).multiplyBy(.01d);
-    } else {
-      return planner.getCostFactory().makeCost(rowCount, 0, 0);
-    }
-  }
 
-  @Override public Result implement(EnumerableRelImplementor implementor, Prefer pref) {
-    switch (joinType) {
-    case SEMI:
-    case ANTI:
-      return implementHashSemiJoin(implementor, pref);
-    default:
-      return implementHashJoin(implementor, pref);
+    @Override
+    @Nullable
+    override fun deriveTraits(
+        childTraits: RelTraitSet?, childId: Int
+    ): Pair<RelTraitSet, List<RelTraitSet>> {
+        // should only derive traits (limited to collation for now) from left join input.
+        return EnumerableTraitsUtils.deriveTraitsForJoin(
+            childTraits, childId, joinType, getTraitSet(), right.getTraitSet()
+        )
     }
-  }
 
-  private Result implementHashSemiJoin(EnumerableRelImplementor implementor, Prefer pref) {
-    assert joinType == JoinRelType.SEMI || joinType == JoinRelType.ANTI;
-    final Method method = joinType == JoinRelType.SEMI
-        ? BuiltInMethod.SEMI_JOIN.method
-        : BuiltInMethod.ANTI_JOIN.method;
-    BlockBuilder builder = new BlockBuilder();
-    final Result leftResult =
-        implementor.visitChild(this, 0, (EnumerableRel) left, pref);
-    Expression leftExpression =
-        builder.append(
-            "left", leftResult.block);
-    final Result rightResult =
-        implementor.visitChild(this, 1, (EnumerableRel) right, pref);
-    Expression rightExpression =
-        builder.append(
-            "right", rightResult.block);
-    final PhysType physType = leftResult.physType;
-    final PhysType keyPhysType =
-        leftResult.physType.project(
-            joinInfo.leftKeys, JavaRowFormat.LIST);
-    Expression predicate = Expressions.constant(null);
-    if (!joinInfo.nonEquiConditions.isEmpty()) {
-      RexNode nonEquiCondition = RexUtil.composeConjunction(
-          getCluster().getRexBuilder(), joinInfo.nonEquiConditions, true);
-      if (nonEquiCondition != null) {
-        predicate = EnumUtils.generatePredicate(implementor, getCluster().getRexBuilder(),
-            left, right, leftResult.physType, rightResult.physType, nonEquiCondition);
-      }
+    @get:Override
+    override val deriveMode: DeriveMode
+        get() = if (joinType === JoinRelType.FULL || joinType === JoinRelType.RIGHT) {
+            DeriveMode.PROHIBITED
+        } else DeriveMode.LEFT_FIRST
+
+    @Override
+    @Nullable
+    fun computeSelfCost(
+        planner: RelOptPlanner,
+        mq: RelMetadataQuery
+    ): RelOptCost {
+        var rowCount: Double = mq.getRowCount(this)
+        when (joinType) {
+            SEMI, ANTI -> {}
+            RIGHT -> rowCount = RelMdUtil.addEpsilon(rowCount)
+            else -> if (RelNodes.COMPARATOR.compare(left, right) > 0) {
+                rowCount = RelMdUtil.addEpsilon(rowCount)
+            }
+        }
+
+        // Cheaper if the smaller number of rows is coming from the LHS.
+        // Model this by adding L log L to the cost.
+        val rightRowCount: Double = right.estimateRowCount(mq)
+        val leftRowCount: Double = left.estimateRowCount(mq)
+        if (Double.isInfinite(leftRowCount)) {
+            rowCount = leftRowCount
+        } else {
+            rowCount += Util.nLogN(leftRowCount)
+        }
+        if (Double.isInfinite(rightRowCount)) {
+            rowCount = rightRowCount
+        } else {
+            rowCount += rightRowCount
+        }
+        return if (isSemiJoin()) {
+            planner.getCostFactory().makeCost(rowCount, 0, 0).multiplyBy(.01)
+        } else {
+            planner.getCostFactory().makeCost(rowCount, 0, 0)
+        }
     }
-    return implementor.result(
-        physType,
-        builder.append(
-            Expressions.call(
-                method,
-                Expressions.list(
+
+    @Override
+    fun implement(implementor: EnumerableRelImplementor, pref: Prefer): Result {
+        return when (joinType) {
+            SEMI, ANTI -> implementHashSemiJoin(implementor, pref)
+            else -> implementHashJoin(implementor, pref)
+        }
+    }
+
+    private fun implementHashSemiJoin(implementor: EnumerableRelImplementor, pref: Prefer): Result {
+        assert(joinType === JoinRelType.SEMI || joinType === JoinRelType.ANTI)
+        val method: Method =
+            if (joinType === JoinRelType.SEMI) BuiltInMethod.SEMI_JOIN.method else BuiltInMethod.ANTI_JOIN.method
+        val builder = BlockBuilder()
+        val leftResult: Result = implementor.visitChild(this, 0, left as EnumerableRel, pref)
+        val leftExpression: Expression = builder.append(
+            "left", leftResult.block
+        )
+        val rightResult: Result = implementor.visitChild(this, 1, right as EnumerableRel, pref)
+        val rightExpression: Expression = builder.append(
+            "right", rightResult.block
+        )
+        val physType: PhysType = leftResult.physType
+        val keyPhysType: PhysType = leftResult.physType.project(
+            joinInfo.leftKeys, JavaRowFormat.LIST
+        )
+        var predicate: Expression = Expressions.constant(null)
+        if (!joinInfo.nonEquiConditions.isEmpty()) {
+            val nonEquiCondition: RexNode = RexUtil.composeConjunction(
+                getCluster().getRexBuilder(), joinInfo.nonEquiConditions, true
+            )
+            if (nonEquiCondition != null) {
+                predicate = EnumUtils.generatePredicate(
+                    implementor, getCluster().getRexBuilder(),
+                    left, right, leftResult.physType, rightResult.physType, nonEquiCondition
+                )
+            }
+        }
+        return implementor.result(
+            physType,
+            builder.append(
+                Expressions.call(
+                    method,
+                    Expressions.list(
+                        leftExpression,
+                        rightExpression,
+                        leftResult.physType.generateAccessor(joinInfo.leftKeys),
+                        rightResult.physType.generateAccessor(joinInfo.rightKeys),
+                        Util.first(
+                            keyPhysType.comparer(),
+                            Expressions.constant(null)
+                        ),
+                        predicate
+                    )
+                )
+            )
+                .toBlock()
+        )
+    }
+
+    private fun implementHashJoin(implementor: EnumerableRelImplementor, pref: Prefer): Result {
+        val builder = BlockBuilder()
+        val leftResult: Result = implementor.visitChild(this, 0, left as EnumerableRel, pref)
+        val leftExpression: Expression = builder.append(
+            "left", leftResult.block
+        )
+        val rightResult: Result = implementor.visitChild(this, 1, right as EnumerableRel, pref)
+        val rightExpression: Expression = builder.append(
+            "right", rightResult.block
+        )
+        val physType: PhysType = PhysTypeImpl.of(
+            implementor.getTypeFactory(), getRowType(), pref.preferArray()
+        )
+        val keyPhysType: PhysType = leftResult.physType.project(
+            joinInfo.leftKeys, JavaRowFormat.LIST
+        )
+        var predicate: Expression = Expressions.constant(null)
+        if (!joinInfo.nonEquiConditions.isEmpty()) {
+            val nonEquiCondition: RexNode = RexUtil.composeConjunction(
+                getCluster().getRexBuilder(), joinInfo.nonEquiConditions, true
+            )
+            if (nonEquiCondition != null) {
+                predicate = EnumUtils.generatePredicate(
+                    implementor, getCluster().getRexBuilder(),
+                    left, right, leftResult.physType, rightResult.physType, nonEquiCondition
+                )
+            }
+        }
+        return implementor.result(
+            physType,
+            builder.append(
+                Expressions.call(
                     leftExpression,
-                    rightExpression,
-                    leftResult.physType.generateAccessor(joinInfo.leftKeys),
-                    rightResult.physType.generateAccessor(joinInfo.rightKeys),
-                    Util.first(keyPhysType.comparer(),
-                        Expressions.constant(null)),
-                    predicate)))
-            .toBlock());
-  }
-
-  private Result implementHashJoin(EnumerableRelImplementor implementor, Prefer pref) {
-    BlockBuilder builder = new BlockBuilder();
-    final Result leftResult =
-        implementor.visitChild(this, 0, (EnumerableRel) left, pref);
-    Expression leftExpression =
-        builder.append(
-            "left", leftResult.block);
-    final Result rightResult =
-        implementor.visitChild(this, 1, (EnumerableRel) right, pref);
-    Expression rightExpression =
-        builder.append(
-            "right", rightResult.block);
-    final PhysType physType =
-        PhysTypeImpl.of(
-            implementor.getTypeFactory(), getRowType(), pref.preferArray());
-    final PhysType keyPhysType =
-        leftResult.physType.project(
-            joinInfo.leftKeys, JavaRowFormat.LIST);
-    Expression predicate = Expressions.constant(null);
-    if (!joinInfo.nonEquiConditions.isEmpty()) {
-      RexNode nonEquiCondition = RexUtil.composeConjunction(
-          getCluster().getRexBuilder(), joinInfo.nonEquiConditions, true);
-      if (nonEquiCondition != null) {
-        predicate = EnumUtils.generatePredicate(implementor, getCluster().getRexBuilder(),
-            left, right, leftResult.physType, rightResult.physType, nonEquiCondition);
-      }
+                    BuiltInMethod.HASH_JOIN.method,
+                    Expressions.list(
+                        rightExpression,
+                        leftResult.physType.generateAccessor(joinInfo.leftKeys),
+                        rightResult.physType.generateAccessor(joinInfo.rightKeys),
+                        EnumUtils.joinSelector(
+                            joinType,
+                            physType,
+                            ImmutableList.of(
+                                leftResult.physType, rightResult.physType
+                            )
+                        )
+                    )
+                        .append(
+                            Util.first(
+                                keyPhysType.comparer(),
+                                Expressions.constant(null)
+                            )
+                        )
+                        .append(
+                            Expressions.constant(joinType.generatesNullsOnLeft())
+                        )
+                        .append(
+                            Expressions.constant(
+                                joinType.generatesNullsOnRight()
+                            )
+                        )
+                        .append(predicate)
+                )
+            )
+                .toBlock()
+        )
     }
-    return implementor.result(
-        physType,
-        builder.append(
-            Expressions.call(
-                leftExpression,
-                BuiltInMethod.HASH_JOIN.method,
-                Expressions.list(
-                    rightExpression,
-                    leftResult.physType.generateAccessor(joinInfo.leftKeys),
-                    rightResult.physType.generateAccessor(joinInfo.rightKeys),
-                    EnumUtils.joinSelector(joinType,
-                        physType,
-                        ImmutableList.of(
-                            leftResult.physType, rightResult.physType)))
-                    .append(
-                        Util.first(keyPhysType.comparer(),
-                            Expressions.constant(null)))
-                    .append(
-                        Expressions.constant(joinType.generatesNullsOnLeft()))
-                    .append(
-                        Expressions.constant(
-                            joinType.generatesNullsOnRight()))
-                    .append(predicate)))
-            .toBlock());
-  }
+
+    companion object {
+        /** Creates an EnumerableHashJoin.  */
+        fun create(
+            left: RelNode,
+            right: RelNode?,
+            condition: RexNode?,
+            variablesSet: Set<CorrelationId?>?,
+            joinType: JoinRelType?
+        ): EnumerableHashJoin {
+            val cluster: RelOptCluster = left.getCluster()
+            val mq: RelMetadataQuery = cluster.getMetadataQuery()
+            val traitSet: RelTraitSet = cluster.traitSetOf(EnumerableConvention.INSTANCE)
+                .replaceIfs(
+                    RelCollationTraitDef.INSTANCE
+                ) { RelMdCollation.enumerableHashJoin(mq, left, right, joinType) }
+            return EnumerableHashJoin(
+                cluster, traitSet, left, right, condition,
+                variablesSet, joinType
+            )
+        }
+    }
 }

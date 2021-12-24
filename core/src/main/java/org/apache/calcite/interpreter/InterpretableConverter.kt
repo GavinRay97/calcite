@@ -14,42 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.interpreter;
+package org.apache.calcite.interpreter
 
-import org.apache.calcite.DataContext;
-import org.apache.calcite.linq4j.Enumerable;
-import org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterImpl;
-import org.apache.calcite.runtime.ArrayBindable;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.util.List;
+import org.apache.calcite.DataContext
 
 /**
  * Relational expression that converts any relational expression input to
- * {@link org.apache.calcite.interpreter.InterpretableConvention}, by wrapping
+ * [org.apache.calcite.interpreter.InterpretableConvention], by wrapping
  * it in an interpreter.
  */
-public class InterpretableConverter extends ConverterImpl
-    implements ArrayBindable {
-  protected InterpretableConverter(RelOptCluster cluster, RelTraitSet traits,
-      RelNode input) {
-    super(cluster, ConventionTraitDef.INSTANCE, traits, input);
-  }
+class InterpretableConverter protected constructor(
+    cluster: RelOptCluster?, traits: RelTraitSet?,
+    input: RelNode?
+) : ConverterImpl(cluster, ConventionTraitDef.INSTANCE, traits, input), ArrayBindable {
+    @Override
+    fun copy(traitSet: RelTraitSet?, inputs: List<RelNode?>?): RelNode {
+        return InterpretableConverter(getCluster(), traitSet, sole(inputs))
+    }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new InterpretableConverter(getCluster(), traitSet, sole(inputs));
-  }
+    @get:Override
+    val elementType: Class<Array<Object>>
+        get() = Array<Object>::class.java
 
-  @Override public Class<Object[]> getElementType() {
-    return Object[].class;
-  }
-
-  @Override public Enumerable<@Nullable Object[]> bind(DataContext dataContext) {
-    return new Interpreter(dataContext, getInput());
-  }
+    @Override
+    fun bind(dataContext: DataContext?): Enumerable<Array<Object>> {
+        return Interpreter(dataContext, getInput())
+    }
 }

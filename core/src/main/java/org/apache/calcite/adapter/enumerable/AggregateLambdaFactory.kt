@@ -14,33 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.linq4j.function.Function0;
-import org.apache.calcite.linq4j.function.Function1;
-import org.apache.calcite.linq4j.function.Function2;
+import org.apache.calcite.linq4j.function.Function0
+import org.apache.calcite.linq4j.function.Function1
+import org.apache.calcite.linq4j.function.Function2
 
 /**
- * Generates lambda functions used in {@link EnumerableAggregate}.
+ * Generates lambda functions used in [EnumerableAggregate].
  *
- * <p>This interface allows a implicit accumulator type variation.
- * ({@code OAccumulate} {@literal ->} {@code TAccumulate})
+ *
+ * This interface allows a implicit accumulator type variation.
+ * (`OAccumulate` -&gt; `TAccumulate`)
  *
  * @param <TSource> Type of the enumerable input source
  * @param <TOrigAccumulate> Type of the original accumulator
  * @param <TAccumulate> Type of the varied accumulator
  * @param <TResult> Type of the enumerable output result
  * @param <TKey> Type of the group-by key
- */
-public interface AggregateLambdaFactory<TSource, TOrigAccumulate, TAccumulate,
-    TResult, TKey> {
-  Function0<TAccumulate> accumulatorInitializer();
+</TKey></TResult></TAccumulate></TOrigAccumulate></TSource> */
+interface AggregateLambdaFactory<TSource, TOrigAccumulate, TAccumulate, TResult, TKey> {
+    fun accumulatorInitializer(): Function0<TAccumulate>?
+    fun accumulatorAdder(): Function2<TAccumulate, TSource, TAccumulate>?
+    fun singleGroupResultSelector(
+        resultSelector: Function1<TOrigAccumulate, TResult>?
+    ): Function1<TAccumulate, TResult>?
 
-  Function2<TAccumulate, TSource, TAccumulate> accumulatorAdder();
-
-  Function1<TAccumulate, TResult> singleGroupResultSelector(
-      Function1<TOrigAccumulate, TResult> resultSelector);
-
-  Function2<TKey, TAccumulate, TResult> resultSelector(
-      Function2<TKey, TOrigAccumulate, TResult> resultSelector);
+    fun resultSelector(
+        resultSelector: Function2<TKey, TOrigAccumulate, TResult>?
+    ): Function2<TKey, TAccumulate, TResult>?
 }

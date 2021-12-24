@@ -14,42 +14,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.calcite.rel.core.Match;
-import org.apache.calcite.rel.logical.LogicalMatch;
+import org.apache.calcite.plan.Convention
 
 /**
- * Rule to convert a {@link LogicalMatch} to an {@link EnumerableMatch}.
- * You may provide a custom config to convert other nodes that extend {@link Match}.
+ * Rule to convert a [LogicalMatch] to an [EnumerableMatch].
+ * You may provide a custom config to convert other nodes that extend [Match].
  *
- * @see EnumerableRules#ENUMERABLE_MATCH_RULE
+ * @see EnumerableRules.ENUMERABLE_MATCH_RULE
  */
-public class EnumerableMatchRule extends ConverterRule {
-  /** Default configuration. */
-  public static final Config DEFAULT_CONFIG = Config.INSTANCE
-      .withConversion(LogicalMatch.class, Convention.NONE,
-          EnumerableConvention.INSTANCE, "EnumerableMatchRule")
-      .withRuleFactory(EnumerableMatchRule::new);
+class EnumerableMatchRule
+/** Creates an EnumerableMatchRule.  */
+protected constructor(config: Config?) : ConverterRule(config) {
+    @Override
+    fun convert(rel: RelNode): RelNode {
+        val match: Match = rel as Match
+        return EnumerableMatch.create(
+            convert(
+                match.getInput(),
+                match.getInput().getTraitSet()
+                    .replace(EnumerableConvention.INSTANCE)
+            ),
+            match.getRowType(),
+            match.getPattern(), match.isStrictStart(), match.isStrictEnd(),
+            match.getPatternDefinitions(), match.getMeasures(), match.getAfter(),
+            match.getSubsets(), match.isAllRows(), match.getPartitionKeys(),
+            match.getOrderKeys(), match.getInterval()
+        )
+    }
 
-  /** Creates an EnumerableMatchRule. */
-  protected EnumerableMatchRule(Config config) {
-    super(config);
-  }
-
-  @Override public RelNode convert(RelNode rel) {
-    final Match match = (Match) rel;
-    return EnumerableMatch.create(
-        convert(match.getInput(),
-            match.getInput().getTraitSet()
-                .replace(EnumerableConvention.INSTANCE)),
-        match.getRowType(),
-        match.getPattern(), match.isStrictStart(), match.isStrictEnd(),
-        match.getPatternDefinitions(), match.getMeasures(), match.getAfter(),
-        match.getSubsets(), match.isAllRows(), match.getPartitionKeys(),
-        match.getOrderKeys(), match.getInterval());
-  }
+    companion object {
+        /** Default configuration.  */
+        val DEFAULT_CONFIG: Config = Config.INSTANCE
+            .withConversion(
+                LogicalMatch::class.java, Convention.NONE,
+                EnumerableConvention.INSTANCE, "EnumerableMatchRule"
+            )
+            .withRuleFactory { config: Config? -> EnumerableMatchRule(config) }
+    }
 }

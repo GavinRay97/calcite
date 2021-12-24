@@ -14,160 +14,152 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.linq4j.tree.ParameterExpression;
-import org.apache.calcite.linq4j.tree.Types;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.prepare.Prepare;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.TableModify;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.schema.ModifiableTable;
-import org.apache.calcite.util.BuiltInMethod;
+import org.apache.calcite.adapter.java.JavaTypeFactory
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-/** Implementation of {@link org.apache.calcite.rel.core.TableModify} in
- * {@link org.apache.calcite.adapter.enumerable.EnumerableConvention enumerable calling convention}. */
-public class EnumerableTableModify extends TableModify
-    implements EnumerableRel {
-  public EnumerableTableModify(RelOptCluster cluster, RelTraitSet traits,
-      RelOptTable table, Prepare.CatalogReader catalogReader, RelNode child,
-      Operation operation, @Nullable List<String> updateColumnList,
-      @Nullable List<RexNode> sourceExpressionList, boolean flattened) {
-    super(cluster, traits, table, catalogReader, child, operation,
-        updateColumnList, sourceExpressionList, flattened);
-    assert child.getConvention() instanceof EnumerableConvention;
-    assert getConvention() instanceof EnumerableConvention;
-    final ModifiableTable modifiableTable =
-        table.unwrap(ModifiableTable.class);
-    if (modifiableTable == null) {
-      throw new AssertionError(); // TODO: user error in validator
+/** Implementation of [org.apache.calcite.rel.core.TableModify] in
+ * [enumerable calling convention][org.apache.calcite.adapter.enumerable.EnumerableConvention].  */
+class EnumerableTableModify(
+    cluster: RelOptCluster?, traits: RelTraitSet?,
+    table: RelOptTable, catalogReader: CatalogReader?, child: RelNode?,
+    operation: Operation?, @Nullable updateColumnList: List<String?>?,
+    @Nullable sourceExpressionList: List<RexNode?>?, flattened: Boolean
+) : TableModify(
+    cluster, traits, table, catalogReader, child, operation,
+    updateColumnList, sourceExpressionList, flattened
+), EnumerableRel {
+    init {
+        assert(child.getConvention() is EnumerableConvention)
+        assert(getConvention() is EnumerableConvention)
+        val modifiableTable: ModifiableTable = table.unwrap(ModifiableTable::class.java)
+            ?: throw AssertionError() // TODO: user error in validator
     }
-  }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new EnumerableTableModify(
-        getCluster(),
-        traitSet,
-        getTable(),
-        getCatalogReader(),
-        sole(inputs),
-        getOperation(),
-        getUpdateColumnList(),
-        getSourceExpressionList(),
-        isFlattened());
-  }
+    @Override
+    fun copy(traitSet: RelTraitSet?, inputs: List<RelNode?>?): RelNode {
+        return EnumerableTableModify(
+            getCluster(),
+            traitSet,
+            getTable(),
+            getCatalogReader(),
+            sole(inputs),
+            getOperation(),
+            getUpdateColumnList(),
+            getSourceExpressionList(),
+            isFlattened()
+        )
+    }
 
-  @Override public Result implement(EnumerableRelImplementor implementor, Prefer pref) {
-    final BlockBuilder builder = new BlockBuilder();
-    final Result result = implementor.visitChild(
-        this, 0, (EnumerableRel) getInput(), pref);
-    Expression childExp =
-        builder.append(
-            "child", result.block);
-    final ParameterExpression collectionParameter =
-        Expressions.parameter(Collection.class,
-            builder.newName("collection"));
-    final Expression expression = table.getExpression(ModifiableTable.class);
-    assert expression != null; // TODO: user error in validator
-    assert ModifiableTable.class.isAssignableFrom(
-        Types.toClass(expression.getType())) : expression.getType();
-    builder.add(
-        Expressions.declare(
-            Modifier.FINAL,
-            collectionParameter,
-            Expressions.call(
-                expression,
-                BuiltInMethod.MODIFIABLE_TABLE_GET_MODIFIABLE_COLLECTION
-                    .method)));
-    final Expression countParameter =
-        builder.append(
+    @Override
+    fun implement(implementor: EnumerableRelImplementor, pref: Prefer): Result {
+        val builder = BlockBuilder()
+        val result: Result = implementor.visitChild(
+            this, 0, getInput() as EnumerableRel, pref
+        )
+        val childExp: Expression = builder.append(
+            "child", result.block
+        )
+        val collectionParameter: ParameterExpression = Expressions.parameter(
+            Collection::class.java,
+            builder.newName("collection")
+        )
+        val expression: Expression = table.getExpression(ModifiableTable::class.java)
+        assert(
+            expression != null // TODO: user error in validator
+        )
+        assert(
+            ModifiableTable::class.java.isAssignableFrom(
+                Types.toClass(expression.getType())
+            )
+        ) { expression.getType() }
+        builder.add(
+            Expressions.declare(
+                Modifier.FINAL,
+                collectionParameter,
+                Expressions.call(
+                    expression,
+                    BuiltInMethod.MODIFIABLE_TABLE_GET_MODIFIABLE_COLLECTION.method
+                )
+            )
+        )
+        val countParameter: Expression = builder.append(
             "count",
             Expressions.call(collectionParameter, "size"),
-            false);
-    Expression convertedChildExp;
-    if (!getInput().getRowType().equals(getRowType())) {
-      final JavaTypeFactory typeFactory =
-          (JavaTypeFactory) getCluster().getTypeFactory();
-      final JavaRowFormat format = EnumerableTableScan.deduceFormat(table);
-      PhysType physType =
-          PhysTypeImpl.of(typeFactory, table.getRowType(), format);
-      List<Expression> expressionList = new ArrayList<>();
-      final PhysType childPhysType = result.physType;
-      final ParameterExpression o_ =
-          Expressions.parameter(childPhysType.getJavaRowType(), "o");
-      final int fieldCount =
-          childPhysType.getRowType().getFieldCount();
-      for (int i = 0; i < fieldCount; i++) {
-        expressionList.add(
-            childPhysType.fieldReference(o_, i, physType.getJavaFieldType(i)));
-      }
-      convertedChildExp =
-          builder.append(
-              "convertedChild",
-              Expressions.call(
-                  childExp,
-                  BuiltInMethod.SELECT.method,
-                  Expressions.lambda(
-                      physType.record(expressionList), o_)));
-    } else {
-      convertedChildExp = childExp;
-    }
-    final Method method;
-    switch (getOperation()) {
-    case INSERT:
-      method = BuiltInMethod.INTO.method;
-      break;
-    case DELETE:
-      method = BuiltInMethod.REMOVE_ALL.method;
-      break;
-    default:
-      throw new AssertionError(getOperation());
-    }
-    builder.add(
-        Expressions.statement(
-            Expressions.call(
-                convertedChildExp, method, collectionParameter)));
-    final Expression updatedCountParameter =
-        builder.append(
+            false
+        )
+        val convertedChildExp: Expression
+        convertedChildExp = if (!getInput().getRowType().equals(getRowType())) {
+            val typeFactory: JavaTypeFactory = getCluster().getTypeFactory() as JavaTypeFactory
+            val format: JavaRowFormat = EnumerableTableScan.deduceFormat(table)
+            val physType: PhysType = PhysTypeImpl.of(typeFactory, table.getRowType(), format)
+            val expressionList: List<Expression> = ArrayList()
+            val childPhysType: PhysType = result.physType
+            val o_: ParameterExpression = Expressions.parameter(childPhysType.getJavaRowType(), "o")
+            val fieldCount: Int = childPhysType.getRowType().getFieldCount()
+            for (i in 0 until fieldCount) {
+                expressionList.add(
+                    childPhysType.fieldReference(o_, i, physType.getJavaFieldType(i))
+                )
+            }
+            builder.append(
+                "convertedChild",
+                Expressions.call(
+                    childExp,
+                    BuiltInMethod.SELECT.method,
+                    Expressions.lambda(
+                        physType.record(expressionList), o_
+                    )
+                )
+            )
+        } else {
+            childExp
+        }
+        val method: Method
+        method = when (getOperation()) {
+            INSERT -> BuiltInMethod.INTO.method
+            DELETE -> BuiltInMethod.REMOVE_ALL.method
+            else -> throw AssertionError(getOperation())
+        }
+        builder.add(
+            Expressions.statement(
+                Expressions.call(
+                    convertedChildExp, method, collectionParameter
+                )
+            )
+        )
+        val updatedCountParameter: Expression = builder.append(
             "updatedCount",
             Expressions.call(collectionParameter, "size"),
-            false);
-    builder.add(
-        Expressions.return_(
-            null,
-            Expressions.call(
-                BuiltInMethod.SINGLETON_ENUMERABLE.method,
-                Expressions.convert_(
-                    Expressions.condition(
-                        Expressions.greaterThanOrEqual(
-                            updatedCountParameter, countParameter),
-                        Expressions.subtract(
-                            updatedCountParameter, countParameter),
-                        Expressions.subtract(
-                            countParameter, updatedCountParameter)),
-                    long.class))));
-    final PhysType physType =
-        PhysTypeImpl.of(
+            false
+        )
+        builder.add(
+            Expressions.return_(
+                null,
+                Expressions.call(
+                    BuiltInMethod.SINGLETON_ENUMERABLE.method,
+                    Expressions.convert_(
+                        Expressions.condition(
+                            Expressions.greaterThanOrEqual(
+                                updatedCountParameter, countParameter
+                            ),
+                            Expressions.subtract(
+                                updatedCountParameter, countParameter
+                            ),
+                            Expressions.subtract(
+                                countParameter, updatedCountParameter
+                            )
+                        ),
+                        Long::class.javaPrimitiveType
+                    )
+                )
+            )
+        )
+        val physType: PhysType = PhysTypeImpl.of(
             implementor.getTypeFactory(),
             getRowType(),
-            pref == Prefer.ARRAY
-                ? JavaRowFormat.ARRAY : JavaRowFormat.SCALAR);
-    return implementor.result(physType, builder.toBlock());
-  }
-
+            if (pref === Prefer.ARRAY) JavaRowFormat.ARRAY else JavaRowFormat.SCALAR
+        )
+        return implementor.result(physType, builder.toBlock())
+    }
 }

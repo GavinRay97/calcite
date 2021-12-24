@@ -14,42 +14,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.rel.core.AggregateCall;
-
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-
-import java.util.List;
+import org.apache.calcite.linq4j.tree.Expression
+import org.apache.calcite.rel.core.AggregateCall
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull
+import java.util.List
 
 /**
  * Represents internal state when implementing aggregate functions.
  */
-public class AggImpState {
-  public final int aggIdx;
-  public final AggregateCall call;
-  public final AggImplementor implementor;
-  public @MonotonicNonNull AggContext context;
-  public @MonotonicNonNull Expression result;
-  public @MonotonicNonNull List<Expression> state;
-  public @MonotonicNonNull Expression accumulatorAdder;
+class AggImpState(val aggIdx: Int, call: AggregateCall, windowContext: Boolean) {
+    val call: AggregateCall
+    val implementor: AggImplementor
 
-  public AggImpState(int aggIdx, AggregateCall call, boolean windowContext) {
-    this.aggIdx = aggIdx;
-    this.call = call;
-    AggImplementor implementor = RexImpTable.INSTANCE.get(call.getAggregation(), windowContext);
-    if (implementor == null) {
-      throw new IllegalArgumentException(
-          "Unable to get aggregate implementation for aggregate "
-          + call.getAggregation()
-          + (windowContext ? " in window context" : ""));
+    @MonotonicNonNull
+    var context: AggContext? = null
+
+    @MonotonicNonNull
+    var result: Expression? = null
+
+    @MonotonicNonNull
+    var state: List<Expression>? = null
+
+    @MonotonicNonNull
+    var accumulatorAdder: Expression? = null
+
+    init {
+        this.call = call
+        val implementor: AggImplementor = RexImpTable.INSTANCE.get(call.getAggregation(), windowContext)
+            ?: throw IllegalArgumentException(
+                ("Unable to get aggregate implementation for aggregate "
+                        + call.getAggregation()
+                        ) + if (windowContext) " in window context" else ""
+            )
+        this.implementor = implementor
     }
-    this.implementor = implementor;
-  }
 
-  @Override public String toString() {
-    return "AggImpState{aggIdx=" + aggIdx + ", call=" + call
-        + ", implementor=" + implementor + "}";
-  }
+    @Override
+    override fun toString(): String {
+        return ("AggImpState{aggIdx=" + aggIdx + ", call=" + call
+                + ", implementor=" + implementor + "}")
+    }
 }

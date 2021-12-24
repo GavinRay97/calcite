@@ -14,104 +14,61 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.linq4j.tree.Primitive;
-import org.apache.calcite.plan.DeriveMode;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelCollationTraitDef;
-import org.apache.calcite.rel.RelDistributionTraitDef;
-import org.apache.calcite.rel.RelFieldCollation;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Values;
-import org.apache.calcite.rel.metadata.RelMdCollation;
-import org.apache.calcite.rel.metadata.RelMdDistribution;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.util.BuiltInMethod;
-import org.apache.calcite.util.Pair;
+import org.apache.calcite.adapter.java.JavaTypeFactory
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Ordering;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
-
-import static java.util.Objects.requireNonNull;
-
-/** Implementation of {@link org.apache.calcite.rel.core.Values} in
- * {@link org.apache.calcite.adapter.enumerable.EnumerableConvention enumerable calling convention}. */
-public class EnumerableValues extends Values implements EnumerableRel {
-  /** Creates an EnumerableValues. */
-  private EnumerableValues(RelOptCluster cluster, RelDataType rowType,
-      ImmutableList<ImmutableList<RexLiteral>> tuples, RelTraitSet traitSet) {
-    super(cluster, rowType, tuples, traitSet);
-  }
-
-  /** Creates an EnumerableValues. */
-  public static EnumerableValues create(RelOptCluster cluster,
-      final RelDataType rowType,
-      final ImmutableList<ImmutableList<RexLiteral>> tuples) {
-    final RelMetadataQuery mq = cluster.getMetadataQuery();
-    final RelTraitSet traitSet =
-        cluster.traitSetOf(EnumerableConvention.INSTANCE)
-            .replaceIfs(RelCollationTraitDef.INSTANCE,
-                () -> RelMdCollation.values(mq, rowType, tuples))
-            .replaceIf(RelDistributionTraitDef.INSTANCE,
-                () -> RelMdDistribution.values(rowType, tuples));
-    return new EnumerableValues(cluster, rowType, tuples, traitSet);
-  }
-
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    assert inputs.isEmpty();
-    return new EnumerableValues(getCluster(), getRowType(), tuples, traitSet);
-  }
-
-  @Override public @Nullable RelNode passThrough(final RelTraitSet required) {
-    RelCollation collation = required.getCollation();
-    if (collation == null || collation.isDefault()) {
-      return null;
+/** Implementation of [org.apache.calcite.rel.core.Values] in
+ * [enumerable calling convention][org.apache.calcite.adapter.enumerable.EnumerableConvention].  */
+class EnumerableValues
+/** Creates an EnumerableValues.  */
+private constructor(
+    cluster: RelOptCluster, rowType: RelDataType,
+    tuples: ImmutableList<ImmutableList<RexLiteral>>, traitSet: RelTraitSet
+) : Values(cluster, rowType, tuples, traitSet), EnumerableRel {
+    @Override
+    fun copy(traitSet: RelTraitSet, inputs: List<RelNode?>): RelNode {
+        assert(inputs.isEmpty())
+        return EnumerableValues(getCluster(), getRowType(), tuples, traitSet)
     }
 
-    // A Values with 0 or 1 rows can be ordered by any collation.
-    if (tuples.size() > 1) {
-      Ordering<List<RexLiteral>> ordering = null;
-      // Generate ordering comparator according to the required collations.
-      for (RelFieldCollation fc : collation.getFieldCollations()) {
-        Ordering<List<RexLiteral>> comparator = RelMdCollation.comparator(fc);
-        if (ordering == null) {
-          ordering = comparator;
-        } else {
-          ordering = ordering.compound(comparator);
+    @Override
+    @Nullable
+    fun passThrough(required: RelTraitSet): RelNode? {
+        val collation: RelCollation = required.getCollation()
+        if (collation == null || collation.isDefault()) {
+            return null
         }
-      }
-      // Check whether the tuples are sorted by required collations.
-      if (!requireNonNull(ordering, "ordering").isOrdered(tuples)) {
-        return null;
-      }
+
+        // A Values with 0 or 1 rows can be ordered by any collation.
+        if (tuples.size() > 1) {
+            var ordering: Ordering<List<RexLiteral?>?>? = null
+            // Generate ordering comparator according to the required collations.
+            for (fc in collation.getFieldCollations()) {
+                val comparator: Ordering<List<RexLiteral?>?> = RelMdCollation.comparator(fc)
+                ordering = if (ordering == null) {
+                    comparator
+                } else {
+                    ordering.compound(comparator)
+                }
+            }
+            // Check whether the tuples are sorted by required collations.
+            if (!requireNonNull(ordering, "ordering").isOrdered(tuples)) {
+                return null
+            }
+        }
+
+        // The tuples order satisfies the collation, we just create a new
+        // relnode with required collation info.
+        return copy(traitSet.replace(collation), ImmutableList.of())
     }
 
-    // The tuples order satisfies the collation, we just create a new
-    // relnode with required collation info.
-    return copy(traitSet.replace(collation), ImmutableList.of());
-  }
+    @get:Override
+    val deriveMode: DeriveMode
+        get() = DeriveMode.PROHIBITED
 
-  @Override public DeriveMode getDeriveMode() {
-    return DeriveMode.PROHIBITED;
-  }
-
-  @Override public Result implement(EnumerableRelImplementor implementor, Prefer pref) {
+    @Override
+    fun implement(implementor: EnumerableRelImplementor, pref: Prefer): Result {
 /*
           return Linq4j.asEnumerable(
               new Object[][] {
@@ -119,38 +76,60 @@ public class EnumerableValues extends Values implements EnumerableRel {
                   new Object[] {3, 4}
               });
 */
-    final JavaTypeFactory typeFactory =
-        (JavaTypeFactory) getCluster().getTypeFactory();
-    final BlockBuilder builder = new BlockBuilder();
-    final PhysType physType =
-        PhysTypeImpl.of(
+        val typeFactory: JavaTypeFactory = getCluster().getTypeFactory() as JavaTypeFactory
+        val builder = BlockBuilder()
+        val physType: PhysType = PhysTypeImpl.of(
             implementor.getTypeFactory(),
             getRowType(),
-            pref.preferCustom());
-    final Type rowClass = physType.getJavaRowType();
-
-    final List<Expression> expressions = new ArrayList<>();
-    final List<RelDataTypeField> fields = getRowType().getFieldList();
-    for (List<RexLiteral> tuple : tuples) {
-      final List<Expression> literals = new ArrayList<>();
-      for (Pair<RelDataTypeField, RexLiteral> pair
-          : Pair.zip(fields, tuple)) {
-        literals.add(
-            RexToLixTranslator.translateLiteral(
-                pair.right,
-                pair.left.getType(),
-                typeFactory,
-                RexImpTable.NullAs.NULL));
-      }
-      expressions.add(physType.record(literals));
+            pref.preferCustom()
+        )
+        val rowClass: Type = physType.getJavaRowType()
+        val expressions: List<Expression> = ArrayList()
+        val fields: List<RelDataTypeField> = getRowType().getFieldList()
+        for (tuple in tuples) {
+            val literals: List<Expression> = ArrayList()
+            for (pair in Pair.zip(fields, tuple)) {
+                literals.add(
+                    RexToLixTranslator.translateLiteral(
+                        pair.right,
+                        pair.left.getType(),
+                        typeFactory,
+                        RexImpTable.NullAs.NULL
+                    )
+                )
+            }
+            expressions.add(physType.record(literals))
+        }
+        builder.add(
+            Expressions.return_(
+                null,
+                Expressions.call(
+                    BuiltInMethod.AS_ENUMERABLE.method,
+                    Expressions.newArrayInit(
+                        Primitive.box(rowClass), expressions
+                    )
+                )
+            )
+        )
+        return implementor.result(physType, builder.toBlock())
     }
-    builder.add(
-        Expressions.return_(
-            null,
-            Expressions.call(
-                BuiltInMethod.AS_ENUMERABLE.method,
-                Expressions.newArrayInit(
-                    Primitive.box(rowClass), expressions))));
-    return implementor.result(physType, builder.toBlock());
-  }
+
+    companion object {
+        /** Creates an EnumerableValues.  */
+        fun create(
+            cluster: RelOptCluster,
+            rowType: RelDataType,
+            tuples: ImmutableList<ImmutableList<RexLiteral>>
+        ): EnumerableValues {
+            val mq: RelMetadataQuery = cluster.getMetadataQuery()
+            val traitSet: RelTraitSet = cluster.traitSetOf(EnumerableConvention.INSTANCE)
+                .replaceIfs(
+                    RelCollationTraitDef.INSTANCE
+                ) { RelMdCollation.values(mq, rowType, tuples) }
+                .replaceIf(
+                    RelDistributionTraitDef.INSTANCE
+                ) { RelMdDistribution.values(rowType, tuples) }
+            return EnumerableValues(cluster, rowType, tuples, traitSet)
+        }
+    }
 }

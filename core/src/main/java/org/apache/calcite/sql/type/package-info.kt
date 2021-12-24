@@ -14,31 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.sql;
-
 /**
- * The <code>VALUES</code> operator.
+ * SQL type system.
  */
-public class SqlValuesOperator extends SqlSpecialOperator {
-  //~ Constructors -----------------------------------------------------------
+package org.apache.calcite.sql.type
 
-  public SqlValuesOperator() {
-    super("VALUES", SqlKind.VALUES);
-  }
-
-  //~ Methods ----------------------------------------------------------------
-
-  @Override public void unparse(
-      SqlWriter writer,
-      SqlCall call,
-      int leftPrec,
-      int rightPrec) {
-    final SqlWriter.Frame frame =
-        writer.startList(SqlWriter.FrameTypeEnum.VALUES, "VALUES", "");
-    for (SqlNode operand : call.getOperandList()) {
-      writer.sep(",");
-      operand.unparse(writer, 0, 0);
-    }
-    writer.endList(frame);
-  }
-}
+import org.apache.calcite.sql.type.SqlOperandCountRanges.RangeImpl

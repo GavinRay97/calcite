@@ -14,42 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.DataContext;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.linq4j.tree.ParameterExpression;
-import org.apache.calcite.plan.RelImplementor;
-import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.DataContext
 
 /**
- * Abstract base class for implementations of {@link RelImplementor}
+ * Abstract base class for implementations of [RelImplementor]
  * that generate java code.
  */
-public abstract class JavaRelImplementor implements RelImplementor {
-  private final RexBuilder rexBuilder;
+abstract class JavaRelImplementor protected constructor(rexBuilder: RexBuilder) : RelImplementor {
+    private val rexBuilder: RexBuilder
 
-  protected JavaRelImplementor(RexBuilder rexBuilder) {
-    this.rexBuilder = rexBuilder;
-    assert rexBuilder.getTypeFactory() instanceof JavaTypeFactory
-        : "Type factory of rexBuilder should be a JavaTypeFactory";
-  }
+    init {
+        this.rexBuilder = rexBuilder
+        assert(rexBuilder.getTypeFactory() is JavaTypeFactory) { "Type factory of rexBuilder should be a JavaTypeFactory" }
+    }
 
-  public RexBuilder getRexBuilder() {
-    return rexBuilder;
-  }
+    fun getRexBuilder(): RexBuilder {
+        return rexBuilder
+    }
 
-  public JavaTypeFactory getTypeFactory() {
-    return (JavaTypeFactory) rexBuilder.getTypeFactory();
-  }
+    val typeFactory: JavaTypeFactory
+        get() = rexBuilder.getTypeFactory() as JavaTypeFactory
 
-  /**
-   * Returns the expression used to access
-   * {@link org.apache.calcite.DataContext}.
-   *
-   * @return expression used to access {@link org.apache.calcite.DataContext}.
-   */
-  public ParameterExpression getRootExpression() {
-    return DataContext.ROOT;
-  }
+    /**
+     * Returns the expression used to access
+     * [org.apache.calcite.DataContext].
+     *
+     * @return expression used to access [org.apache.calcite.DataContext].
+     */
+    val rootExpression: ParameterExpression
+        get() = DataContext.ROOT
 }

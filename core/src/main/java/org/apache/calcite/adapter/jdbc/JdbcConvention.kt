@@ -14,58 +14,66 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.jdbc;
+package org.apache.calcite.adapter.jdbc
 
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.rel.rules.CoreRules;
-import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.linq4j.tree.Expression
+import org.apache.calcite.plan.Convention
+import org.apache.calcite.plan.RelOptPlanner
+import org.apache.calcite.plan.RelOptRule
+import org.apache.calcite.rel.rules.CoreRules
+import org.apache.calcite.sql.SqlDialect
 
 /**
  * Calling convention for relational operations that occur in a JDBC
  * database.
  *
- * <p>The convention is a slight misnomer. The operations occur in whatever
- * data-flow architecture the database uses internally. Nevertheless, the result
- * pops out in JDBC.</p>
  *
- * <p>This is the only convention, thus far, that is not a singleton. Each
+ * The convention is a slight misnomer. The operations occur in whatever
+ * data-flow architecture the database uses internally. Nevertheless, the result
+ * pops out in JDBC.
+ *
+ *
+ * This is the only convention, thus far, that is not a singleton. Each
  * instance contains a JDBC schema (and therefore a data source). If Calcite is
  * working with two different databases, it would even make sense to convert
  * from "JDBC#A" convention to "JDBC#B", even though we don't do it currently.
  * (That would involve asking database B to open a database link to database
- * A.)</p>
+ * A.)
  *
- * <p>As a result, converter rules from and to this convention need to be
- * instantiated, at the start of planning, for each JDBC database in play.</p>
+ *
+ * As a result, converter rules from and to this convention need to be
+ * instantiated, at the start of planning, for each JDBC database in play.
  */
-public class JdbcConvention extends Convention.Impl {
-  /** Cost of a JDBC node versus implementing an equivalent node in a "typical"
-   * calling convention. */
-  public static final double COST_MULTIPLIER = 0.8d;
+class JdbcConvention(
+    dialect: SqlDialect, expression: Expression,
+    name: String
+) : Convention.Impl("JDBC.$name", JdbcRel::class.java) {
+    val dialect: SqlDialect
+    val expression: Expression
 
-  public final SqlDialect dialect;
-  public final Expression expression;
-
-  public JdbcConvention(SqlDialect dialect, Expression expression,
-      String name) {
-    super("JDBC." + name, JdbcRel.class);
-    this.dialect = dialect;
-    this.expression = expression;
-  }
-
-  public static JdbcConvention of(SqlDialect dialect, Expression expression,
-      String name) {
-    return new JdbcConvention(dialect, expression, name);
-  }
-
-  @Override public void register(RelOptPlanner planner) {
-    for (RelOptRule rule : JdbcRules.rules(this)) {
-      planner.addRule(rule);
+    init {
+        this.dialect = dialect
+        this.expression = expression
     }
-    planner.addRule(CoreRules.FILTER_SET_OP_TRANSPOSE);
-    planner.addRule(CoreRules.PROJECT_REMOVE);
-  }
+
+    @Override
+    fun register(planner: RelOptPlanner) {
+        for (rule in JdbcRules.rules(this)) {
+            planner.addRule(rule)
+        }
+        planner.addRule(CoreRules.FILTER_SET_OP_TRANSPOSE)
+        planner.addRule(CoreRules.PROJECT_REMOVE)
+    }
+
+    companion object {
+        /** Cost of a JDBC node versus implementing an equivalent node in a "typical"
+         * calling convention.  */
+        const val COST_MULTIPLIER = 0.8
+        fun of(
+            dialect: SqlDialect, expression: Expression,
+            name: String
+        ): JdbcConvention {
+            return JdbcConvention(dialect, expression, name)
+        }
+    }
 }

@@ -14,25 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.jdbc;
+package org.apache.calcite.adapter.jdbc
 
-import org.apache.calcite.linq4j.Enumerator;
-import org.apache.calcite.linq4j.QueryProvider;
-import org.apache.calcite.linq4j.QueryProviderImpl;
-import org.apache.calcite.linq4j.Queryable;
-
-import static org.apache.calcite.linq4j.Nullness.castNonNull;
+import org.apache.calcite.linq4j.Enumerator
+import org.apache.calcite.linq4j.QueryProvider
+import org.apache.calcite.linq4j.QueryProviderImpl
+import org.apache.calcite.linq4j.Queryable
+import org.apache.calcite.linq4j.Nullness.castNonNull
 
 /**
- * Implementation of {@link QueryProvider} that talks to JDBC databases.
+ * Implementation of [QueryProvider] that talks to JDBC databases.
  */
-public final class JdbcQueryProvider extends QueryProviderImpl {
-  public static final JdbcQueryProvider INSTANCE = new JdbcQueryProvider();
+class JdbcQueryProvider private constructor() : QueryProviderImpl() {
+    @Override
+    fun <T> executeQuery(queryable: Queryable<T>?): Enumerator<T> {
+        return castNonNull(null)
+    }
 
-  private JdbcQueryProvider() {
-  }
-
-  @Override public <T> Enumerator<T> executeQuery(Queryable<T> queryable) {
-    return castNonNull(null);
-  }
+    companion object {
+        val INSTANCE = JdbcQueryProvider()
+    }
 }

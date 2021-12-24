@@ -14,43 +14,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.calcite.rel.core.Correlate;
-import org.apache.calcite.rel.logical.LogicalCorrelate;
-
-import org.immutables.value.Value;
+import org.apache.calcite.plan.Convention
 
 /**
  * Implementation of nested loops over enumerable inputs.
  *
- * @see EnumerableRules#ENUMERABLE_CORRELATE_RULE
+ * @see EnumerableRules.ENUMERABLE_CORRELATE_RULE
  */
 @Value.Enclosing
-public class EnumerableCorrelateRule extends ConverterRule {
-  /** Default configuration. */
-  public static final Config DEFAULT_CONFIG = Config.INSTANCE
-      .withConversion(LogicalCorrelate.class, r -> true, Convention.NONE,
-          EnumerableConvention.INSTANCE, "EnumerableCorrelateRule")
-      .withRuleFactory(EnumerableCorrelateRule::new);
+class EnumerableCorrelateRule
+/** Creates an EnumerableCorrelateRule.  */
+protected constructor(config: Config?) : ConverterRule(config) {
+    @Override
+    fun convert(rel: RelNode): RelNode {
+        val c: Correlate = rel as Correlate
+        return EnumerableCorrelate.create(
+            convert(
+                c.getLeft(), c.getLeft().getTraitSet()
+                    .replace(EnumerableConvention.INSTANCE)
+            ),
+            convert(
+                c.getRight(), c.getRight().getTraitSet()
+                    .replace(EnumerableConvention.INSTANCE)
+            ),
+            c.getCorrelationId(),
+            c.getRequiredColumns(),
+            c.getJoinType()
+        )
+    }
 
-  /** Creates an EnumerableCorrelateRule. */
-  protected EnumerableCorrelateRule(Config config) {
-    super(config);
-  }
-
-  @Override public RelNode convert(RelNode rel) {
-    final Correlate c = (Correlate) rel;
-    return EnumerableCorrelate.create(
-        convert(c.getLeft(), c.getLeft().getTraitSet()
-            .replace(EnumerableConvention.INSTANCE)),
-        convert(c.getRight(), c.getRight().getTraitSet()
-            .replace(EnumerableConvention.INSTANCE)),
-        c.getCorrelationId(),
-        c.getRequiredColumns(),
-        c.getJoinType());
-  }
+    companion object {
+        /** Default configuration.  */
+        val DEFAULT_CONFIG: Config = Config.INSTANCE
+            .withConversion(
+                LogicalCorrelate::class.java, { r -> true }, Convention.NONE,
+                EnumerableConvention.INSTANCE, "EnumerableCorrelateRule"
+            )
+            .withRuleFactory { config: Config? -> EnumerableCorrelateRule(config) }
+    }
 }

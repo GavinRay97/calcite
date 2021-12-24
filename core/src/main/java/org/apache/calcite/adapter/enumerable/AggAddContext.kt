@@ -14,52 +14,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.rex.RexNode;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.util.List;
+import org.apache.calcite.linq4j.tree.Expression
+import org.apache.calcite.rex.RexNode
+import java.util.List
 
 /**
  * Information for a call to
- * {@link org.apache.calcite.adapter.enumerable.AggImplementor#implementAdd(AggContext, AggAddContext)}.
+ * [org.apache.calcite.adapter.enumerable.AggImplementor.implementAdd].
  *
- * <p>Typically, the aggregation implementation will use {@link #arguments()}
- * or {@link #rexArguments()} to update aggregate value.
+ *
+ * Typically, the aggregation implementation will use [.arguments]
+ * or [.rexArguments] to update aggregate value.
  */
-public interface AggAddContext extends AggResultContext {
-  /**
-   * Returns {@link org.apache.calcite.rex.RexNode} representation of arguments.
-   * This can be useful for manual translation of required arguments with
-   * different {@link NullPolicy}.
-   * @return {@link org.apache.calcite.rex.RexNode} representation of arguments
-   */
-  List<RexNode> rexArguments();
+interface AggAddContext : AggResultContext {
+    /**
+     * Returns [org.apache.calcite.rex.RexNode] representation of arguments.
+     * This can be useful for manual translation of required arguments with
+     * different [NullPolicy].
+     * @return [org.apache.calcite.rex.RexNode] representation of arguments
+     */
+    fun rexArguments(): List<RexNode?>?
 
-  /**
-   * Returns {@link org.apache.calcite.rex.RexNode} representation of the
-   * filter, or null.
-   */
-  @Nullable RexNode rexFilterArgument();
+    /**
+     * Returns [org.apache.calcite.rex.RexNode] representation of the
+     * filter, or null.
+     */
+    @Nullable
+    fun rexFilterArgument(): RexNode?
 
-  /**
-   * Returns Linq4j form of arguments.
-   * The resulting value is equivalent to
-   * {@code rowTranslator().translateList(rexArguments())}.
-   * This is handy if you need just operate on argument.
-   * @return Linq4j form of arguments.
-   */
-  List<Expression> arguments();
+    /**
+     * Returns Linq4j form of arguments.
+     * The resulting value is equivalent to
+     * `rowTranslator().translateList(rexArguments())`.
+     * This is handy if you need just operate on argument.
+     * @return Linq4j form of arguments.
+     */
+    fun arguments(): List<Expression?>?
 
-  /**
-   * Returns a
-   * {@link org.apache.calcite.adapter.enumerable.RexToLixTranslator}
-   * suitable to transform the arguments.
-   *
-   * @return {@link RexToLixTranslator} suitable to transform the arguments
-   */
-  RexToLixTranslator rowTranslator();
+    /**
+     * Returns a
+     * [org.apache.calcite.adapter.enumerable.RexToLixTranslator]
+     * suitable to transform the arguments.
+     *
+     * @return [RexToLixTranslator] suitable to transform the arguments
+     */
+    fun rowTranslator(): RexToLixTranslator?
 }

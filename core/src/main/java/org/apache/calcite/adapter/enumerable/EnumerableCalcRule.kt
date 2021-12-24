@@ -14,44 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.calcite.rel.core.Calc;
-import org.apache.calcite.rel.logical.LogicalCalc;
-
-import org.immutables.value.Value;
+import org.apache.calcite.plan.Convention
 
 /**
- * Rule to convert a {@link LogicalCalc} to an {@link EnumerableCalc}.
- * You may provide a custom config to convert other nodes that extend {@link Calc}.
+ * Rule to convert a [LogicalCalc] to an [EnumerableCalc].
+ * You may provide a custom config to convert other nodes that extend [Calc].
  *
- * @see EnumerableRules#ENUMERABLE_CALC_RULE
+ * @see EnumerableRules.ENUMERABLE_CALC_RULE
  */
 @Value.Enclosing
-class EnumerableCalcRule extends ConverterRule {
-  /** Default configuration. */
-  public static final Config DEFAULT_CONFIG = Config.INSTANCE
-      // The predicate ensures that if there's a multiset,
-      // FarragoMultisetSplitter will work on it first.
-      .withConversion(LogicalCalc.class, RelOptUtil::notContainsWindowedAgg,
-          Convention.NONE, EnumerableConvention.INSTANCE,
-          "EnumerableCalcRule")
-      .withRuleFactory(EnumerableCalcRule::new);
+class EnumerableCalcRule protected constructor(config: Config?) : ConverterRule(config) {
+    @Override
+    fun convert(rel: RelNode): RelNode {
+        val calc: Calc = rel as Calc
+        val input: RelNode = calc.getInput()
+        return EnumerableCalc.create(
+            convert(
+                input,
+                input.getTraitSet().replace(EnumerableConvention.INSTANCE)
+            ),
+            calc.getProgram()
+        )
+    }
 
-  protected EnumerableCalcRule(Config config) {
-    super(config);
-  }
-
-  @Override public RelNode convert(RelNode rel) {
-    final Calc calc = (Calc) rel;
-    final RelNode input = calc.getInput();
-    return EnumerableCalc.create(
-        convert(input,
-            input.getTraitSet().replace(EnumerableConvention.INSTANCE)),
-        calc.getProgram());
-  }
+    companion object {
+        /** Default configuration.  */
+        val DEFAULT_CONFIG: Config = Config.INSTANCE // The predicate ensures that if there's a multiset,
+            // FarragoMultisetSplitter will work on it first.
+            .withConversion(
+                LogicalCalc::class.java, RelOptUtil::notContainsWindowedAgg,
+                Convention.NONE, EnumerableConvention.INSTANCE,
+                "EnumerableCalcRule"
+            )
+            .withRuleFactory { config: Config? -> EnumerableCalcRule(config) }
+    }
 }

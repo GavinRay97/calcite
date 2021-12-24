@@ -14,36 +14,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import java.util.List;
+import java.util.List
 
-/** Class with static Helpers for MATCH_RECOGNIZE. */
-public class MatchUtils {
-
-  // Should not be instantiated
-  private MatchUtils() {
-    throw new IllegalStateException();
-  }
-
-  /**
-   * Returns the row with the highest index whose corresponding symbol matches, null otherwese.
-   * @param symbol Target Symbol
-   * @param rows List of passed rows
-   * @param symbols Corresponding symbols to rows
-   * @return index or -1
-   */
-  public static <E> int lastWithSymbol(String symbol, List<E> rows, List<String> symbols,
-      int startIndex) {
-    for (int i = startIndex; i >= 0; i--) {
-      if (symbol.equals(symbols.get(i))) {
-        return i;
-      }
+/** Class with static Helpers for MATCH_RECOGNIZE.  */
+class MatchUtils private constructor() {
+    // Should not be instantiated
+    init {
+        throw IllegalStateException()
     }
-    return -1;
-  }
 
-  public static void print(int s) {
-    System.out.println(s);
-  }
+    companion object {
+        /**
+         * Returns the row with the highest index whose corresponding symbol matches, null otherwese.
+         * @param symbol Target Symbol
+         * @param rows List of passed rows
+         * @param symbols Corresponding symbols to rows
+         * @return index or -1
+         */
+        fun <E> lastWithSymbol(
+            symbol: String, rows: List<E>?, symbols: List<String?>,
+            startIndex: Int
+        ): Int {
+            for (i in startIndex downTo 0) {
+                if (symbol.equals(symbols[i])) {
+                    return i
+                }
+            }
+            return -1
+        }
+
+        fun print(s: Int) {
+            System.out.println(s)
+        }
+    }
 }

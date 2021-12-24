@@ -14,43 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.adapter.enumerable;
+package org.apache.calcite.adapter.enumerable
 
-import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.calcite.rel.core.Union;
-import org.apache.calcite.rel.logical.LogicalUnion;
-import org.apache.calcite.util.Util;
-
-import java.util.List;
+import org.apache.calcite.plan.Convention
 
 /**
- * Rule to convert an {@link LogicalUnion} to an {@link EnumerableUnion}.
- * You may provide a custom config to convert other nodes that extend {@link Union}.
+ * Rule to convert an [LogicalUnion] to an [EnumerableUnion].
+ * You may provide a custom config to convert other nodes that extend [Union].
  *
- * @see EnumerableRules#ENUMERABLE_UNION_RULE
+ * @see EnumerableRules.ENUMERABLE_UNION_RULE
  */
-class EnumerableUnionRule extends ConverterRule {
-  /** Default configuration. */
-  static final Config DEFAULT_CONFIG = Config.INSTANCE
-      .withConversion(LogicalUnion.class, Convention.NONE,
-          EnumerableConvention.INSTANCE, "EnumerableUnionRule")
-      .withRuleFactory(EnumerableUnionRule::new);
+internal class EnumerableUnionRule
+/** Called from the Config.  */
+protected constructor(config: Config?) : ConverterRule(config) {
+    @Override
+    fun convert(rel: RelNode): RelNode {
+        val union: Union = rel as Union
+        val out: EnumerableConvention = EnumerableConvention.INSTANCE
+        val traitSet: RelTraitSet = rel.getCluster().traitSet().replace(out)
+        val newInputs: List<RelNode> = Util.transform(
+            union.getInputs()
+        ) { n -> convert(n, traitSet) }
+        return EnumerableUnion(
+            rel.getCluster(), traitSet,
+            newInputs, union.all
+        )
+    }
 
-  /** Called from the Config. */
-  protected EnumerableUnionRule(Config config) {
-    super(config);
-  }
-
-  @Override public RelNode convert(RelNode rel) {
-    final Union union = (Union) rel;
-    final EnumerableConvention out = EnumerableConvention.INSTANCE;
-    final RelTraitSet traitSet = rel.getCluster().traitSet().replace(out);
-    final List<RelNode> newInputs = Util.transform(
-        union.getInputs(), n -> convert(n, traitSet));
-    return new EnumerableUnion(rel.getCluster(), traitSet,
-        newInputs, union.all);
-  }
+    companion object {
+        /** Default configuration.  */
+        val DEFAULT_CONFIG: Config = Config.INSTANCE
+            .withConversion(
+                LogicalUnion::class.java, Convention.NONE,
+                EnumerableConvention.INSTANCE, "EnumerableUnionRule"
+            )
+            .withRuleFactory { config: Config? -> EnumerableUnionRule(config) }
+    }
 }
